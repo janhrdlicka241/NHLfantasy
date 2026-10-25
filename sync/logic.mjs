@@ -184,11 +184,30 @@ function addMonth(st, date, owner, who, slot, role, g, a, so, pts) {
   return true;
 }
 
-export function processGame(st, game, parsed, now) {
+// Zpětné započítání: sestavy potvrzené do konce října se počítají od začátku sezóny.
+// retro = { fromIso, untilIso, month }  → vrací množinu majitelů, které je potřeba přepočítat
+export function prepareRetro(st, retro) {
+  const owners = new Set();
+  // říjen z Excelu se nahrazuje skutečnými body ze sestav
+  if (st.months[retro.month]?.locked) { st.months[retro.month] = { key: retro.month, owners: {}, paid: false }; mark(st, `months/${retro.month}`); }
+  for (const [owner, roster] of Object.entries(st.rosters)) {
+    if (!roster.locked || roster.retroDone || !(roster.lockedAt < retro.untilIso)) continue;
+    for (const sl of roster.slots) { sl.activeFrom = retro.fromIso; sl.games = 0; sl.baseMissed = 0; sl.subMissed = 0; }
+    roster.retroDone = true;
+    const m = st.months[retro.month];
+    if (m?.owners?.[owner]) { delete m.owners[owner]; mark(st, `months/${retro.month}`); }
+    owners.add(owner); mark(st, `rosters/${owner}`);
+  }
+  return owners;
+}
+
+// opts.only = jen tito majitelé (zpětný přepočet), opts.quiet = neotvírat zranění (staré zápasy)
+export function processGame(st, game, parsed, now, opts = {}) {
   const teams = [game.away, game.home];
   const { lineup, so, stats } = parsed;
   for (const [owner, roster] of Object.entries(st.rosters)) {
     if (!roster.locked) continue;
+    if (opts.only && !opts.only.has(owner)) continue;
     for (const slot of roster.slots) {
       if (game.start <= slot.activeFrom) continue; // zápas před potvrzením sestavy
       let touched = false;
@@ -205,7 +224,7 @@ export function processGame(st, game, parsed, now) {
           }
         } else {
           slot.baseMissed++;
-          if (!inj && slot.baseMissed >= MISS_LIMIT[slot.pos]) {
+          if (!inj && !opts.quiet && slot.baseMissed >= MISS_LIMIT[slot.pos]) {
             inj = { id: genId(), owner, slot: slot.key, pos: slot.pos, player: { ...slot.base }, needPick: true, sub: null,
               openedAt: now, deadline: new Date(Date.parse(now) + DEADLINE_H * 3600e3).toISOString(),
               missed: slot.baseMissed, status: "", ret: "", active: true };

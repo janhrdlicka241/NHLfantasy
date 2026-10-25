@@ -9,6 +9,8 @@ const DRY = process.env.DRY === "1";
 let now = new Date().toISOString();
 export const setNow = (v) => { now = v; };
 const nyDate = (d = new Date()) => d.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+// Říjen 2026: sestavy potvrzené do konce října (čas NHL) se počítají od začátku sezóny
+const RETRO = { fromIso: "2026-09-01T00:00:00Z", fromDate: "2026-10-01", untilIso: "2026-11-01T04:00:00Z", month: "2026-10" };
 const addDays = (s, n) => { const d = new Date(s + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 
 async function seed(fs) {
@@ -54,23 +56,35 @@ async function sync(fs) {
   L.applyRosterPicks(st, idx, teamGP, now);
   L.applyPicks(st, idx, now);
   L.applyDeadlines(st, idx, now);
+  const retroOwners = L.prepareRetro(st, RETRO);
+  if (retroOwners.size) console.log(`Zpětný přepočet října pro: ${[...retroOwners].join(", ")}`);
 
-  // 3) odehrané zápasy od posledního běhu
+  // 3) odehrané zápasy od posledního běhu (+ všechny od začátku sezóny pro zpětný přepočet)
   const done = new Map((st.meta.doneGames || []).map(([id, d]) => [id, d]));
   const from = st.meta.lastDate || addDays(today, -2);
-  const games = [], upcoming = [];
-  for (let d = from; d <= addDays(today, 3);) {
+  const scanFrom = retroOwners.size && RETRO.fromDate < from ? RETRO.fromDate : from;
+  const games = [], retroGames = [], upcoming = [];
+  for (let d = scanFrom; d <= addDays(today, 3);) {
     const week = await nhl.scheduleWeek(d);
     if (!week.length) break;
     for (const day of week) for (const g of day.games) {
       if (g.type !== 2) continue; // jen základní část
-      if (day.date >= from && day.date <= today && nhl.isFinal(g) && !done.has(g.id) && !games.some((x) => x.id === g.id)) games.push(g);
+      if (day.date <= today && nhl.isFinal(g) && !games.some((x) => x.id === g.id) && !retroGames.some((x) => x.id === g.id)) {
+        if (day.date >= from && !done.has(g.id)) games.push(g);
+        else if (retroOwners.size && day.date >= RETRO.fromDate) retroGames.push(g);
+      }
       if (day.date >= today && day.date <= addDays(today, 3) && !nhl.isFinal(g) && !upcoming.some((x) => x.id === g.id)) upcoming.push(g);
     }
     const next = addDays(week[week.length - 1].date, 1);
     if (next <= d) break;
     d = next;
   }
+  retroGames.sort((a, b) => a.start.localeCompare(b.start));
+  for (const g of retroGames) {
+    const [box, land] = await Promise.all([nhl.boxscore(g.id), nhl.landing(g.id)]);
+    L.processGame(st, g, L.parseGame(box, land), now, { only: retroOwners, quiet: g.date < addDays(today, -2) });
+  }
+  if (retroGames.length) console.log(`Zpětně přepočteno zápasů: ${retroGames.length}`);
   games.sort((a, b) => a.start.localeCompare(b.start));
   for (const g of games) {
     const [box, land] = await Promise.all([nhl.boxscore(g.id), nhl.landing(g.id)]);
@@ -91,6 +105,7 @@ async function sync(fs) {
   st.meta.lastRun = now;
   const recentSnap = await fs.doc("public/recent").get();
   const days = recentSnap.exists ? recentSnap.data().days || {} : {};
+  for (const k of Object.keys(days)) days[k] = days[k].filter((e) => !retroOwners.has(e.owner)); // přepočtení majitelé znovu
   for (const e of st.log) (days[e.date] ||= []).push(e);
   for (const k of Object.keys(days)) if (k < addDays(today, -7)) delete days[k];
   const extra = {
