@@ -40,6 +40,22 @@ export function ownedIds(st, exceptOwner = null) {
 export const openInjury = (st, owner, slotKey) => st.injuries.find((i) => i.active && i.owner === owner && i.slot === slotKey);
 
 // --- pool: { skaters:[[id,name,team,posCode,gp,g,a]], goalies:[[id,name,team,gp,w,l,ot,gaa,sv,so]] } ---
+// Doplní do poolu hráče ze soupisek, kteří ještě nemají statistiky; u ostatních aktualizuje tým
+export function mergeRosters(pool, roster) {
+  const sk = new Map(pool.skaters.map((r) => [r[0], r])), go = new Map(pool.goalies.map((r) => [r[0], r]));
+  let added = 0;
+  for (const p of roster) {
+    if (!p.id || !p.name) continue;
+    if (p.pos === "G") {
+      if (go.has(p.id)) go.get(p.id)[2] = p.team;
+      else { const r = [p.id, p.name, p.team, 0, 0, 0, 0, null, null, 0]; pool.goalies.push(r); go.set(p.id, r); added++; }
+    } else {
+      if (sk.has(p.id)) sk.get(p.id)[2] = p.team;
+      else { const r = [p.id, p.name, p.team, p.pos, 0, 0, 0]; pool.skaters.push(r); sk.set(p.id, r); added++; }
+    }
+  }
+  return added;
+}
 export function poolIndex(pool) {
   const m = new Map();
   for (const r of pool.skaters) m.set(r[0], { id: r[0], name: r[1], team: r[2], pos: fantasyPos(r[3]), score: r[5] + r[6] });

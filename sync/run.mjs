@@ -43,8 +43,10 @@ async function sync(fs) {
 
   // 1) statistiky celé ligy (výběr hráčů, žebříčky) + odehrané zápasy týmů
   const pool = await nhl.pool(season);
-  const idx = L.poolIndex(pool);
   const teamGP = await nhl.teamGamesPlayed();
+  const added = L.mergeRosters(pool, await nhl.rosters(Object.keys(teamGP).filter(Boolean)));
+  console.log(`Ze soupisek doplněno hráčů bez zápasu: ${added}`);
+  const idx = L.poolIndex(pool);
   console.log(`Pool: ${pool.skaters.length} hráčů, ${pool.goalies.length} brankářů`);
   L.refreshTeams(st, idx);
 

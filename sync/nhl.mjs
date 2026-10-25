@@ -55,6 +55,20 @@ export async function pool(seasonId) {
   };
 }
 
+// Soupisky všech týmů – doplní hráče, kteří zatím nenastoupili (hlavně brankáře)
+export async function rosters(teams) {
+  const out = [];
+  for (const t of teams) {
+    try {
+      const j = await getJson(`${WEB}/roster/${t}/current`, 2);
+      for (const p of [...(j.forwards || []), ...(j.defensemen || []), ...(j.goalies || [])]) {
+        out.push({ id: p.id, name: `${p.firstName?.default || ""} ${p.lastName?.default || ""}`.trim(), team: t, pos: p.positionCode });
+      }
+    } catch (e) { console.log(`Soupiska ${t} nedostupná: ${e.message}`); }
+  }
+  return out;
+}
+
 // Seznam zranění z ESPN (nepovinné – když selže, jede se dál)
 export async function espnInjuries() {
   const j = await getJson(ESPN_INJ, 2);
