@@ -1,4 +1,3 @@
-js
 export const firebaseConfig = {
   apiKey: "AIzaSyAarLVGS-T59T6WBb8S9Hg4rFbbXtK1OUg",
   authDomain: "nhlfantasy-96a70.firebaseapp.com",
