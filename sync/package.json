@@ -1,0 +1,14 @@
+{
+  "name": "fantasy-nhl-sync",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "sync": "node run.mjs sync",
+    "seed": "node run.mjs seed",
+    "test": "node test.mjs && node e2e.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  }
+}

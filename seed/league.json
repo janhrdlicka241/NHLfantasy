@@ -1,0 +1,498 @@
+{
+ "league": {
+  "owners": [
+   "Šráma",
+   "Hrdla",
+   "Myšák",
+   "Chlebis",
+   "Svatý",
+   "BoB",
+   "Dvory"
+  ],
+  "kc": 5,
+  "season": "20262027",
+  "colors": {
+   "Svatý": "#1f5fa8",
+   "BoB": "#c2410c",
+   "Šráma": "#7c3aed",
+   "Chlebis": "#0f7f72",
+   "Dvory": "#8b5a2b",
+   "Hrdla": "#be185d",
+   "Myšák": "#475569"
+  }
+ },
+ "months": {
+  "2026-10": {
+   "key": "2026-10",
+   "locked": true,
+   "paid": false,
+   "source": "Excel „Nhlko – říjen 2026“",
+   "owners": {
+    "Šráma": {
+     "pts": 81,
+     "players": {
+      "kucerov-f": {
+       "name": "Kučerov",
+       "team": "TBL",
+       "pos": "F",
+       "role": "base",
+       "g": 4,
+       "a": 9,
+       "so": 0,
+       "pts": 17,
+       "gp": null
+      },
+      "bedard-f": {
+       "name": "Bedard",
+       "team": "CHI",
+       "pos": "F",
+       "role": "base",
+       "g": 1,
+       "a": 2,
+       "so": 0,
+       "pts": 4,
+       "gp": null
+      },
+      "suzuki-f": {
+       "name": "Suzuki",
+       "team": "MTL",
+       "pos": "F",
+       "role": "base",
+       "g": 5,
+       "a": 7,
+       "so": 0,
+       "pts": 17,
+       "gp": null
+      },
+      "bouchard-d": {
+       "name": "Bouchard",
+       "team": "EDM",
+       "pos": "D",
+       "role": "base",
+       "g": 7,
+       "a": 12,
+       "so": 0,
+       "pts": 33,
+       "gp": null
+      },
+      "gustavsson-g": {
+       "name": "Gustavsson",
+       "team": "MIN",
+       "pos": "G",
+       "role": "base",
+       "g": 0,
+       "a": 0,
+       "so": 0,
+       "pts": 0,
+       "gp": null
+      },
+      "hughes-f": {
+       "name": "Hughes",
+       "team": "NJD",
+       "pos": "F",
+       "role": "sub",
+       "g": 2,
+       "a": 6,
+       "so": 0,
+       "pts": 10,
+       "gp": null
+      }
+     }
+    },
+    "Hrdla": {
+     "pts": 69,
+     "players": {
+      "mackinnon-f": {
+       "name": "MacKinnon",
+       "team": "COL",
+       "pos": "F",
+       "role": "base",
+       "g": 6,
+       "a": 10,
+       "so": 0,
+       "pts": 22,
+       "gp": null
+      },
+      "scheifele-f": {
+       "name": "Scheifele",
+       "team": "WPG",
+       "pos": "F",
+       "role": "base",
+       "g": 2,
+       "a": 6,
+       "so": 0,
+       "pts": 10,
+       "gp": null
+      },
+      "boldy-f": {
+       "name": "Boldy",
+       "team": "MIN",
+       "pos": "F",
+       "role": "base",
+       "g": 5,
+       "a": 4,
+       "so": 0,
+       "pts": 14,
+       "gp": null
+      },
+      "makar-d": {
+       "name": "Makar",
+       "team": "COL",
+       "pos": "D",
+       "role": "base",
+       "g": 3,
+       "a": 8,
+       "so": 0,
+       "pts": 17,
+       "gp": null
+      },
+      "hofer-g": {
+       "name": "Hofer",
+       "team": "STL",
+       "pos": "G",
+       "role": "base",
+       "g": 0,
+       "a": 1,
+       "so": 1,
+       "pts": 6,
+       "gp": null
+      }
+     }
+    },
+    "Myšák": {
+     "pts": 54,
+     "players": {
+      "caufield-f": {
+       "name": "Caufield",
+       "team": "MTL",
+       "pos": "F",
+       "role": "base",
+       "g": 6,
+       "a": 2,
+       "so": 0,
+       "pts": 14,
+       "gp": null
+      },
+      "robertson-f": {
+       "name": "Robertson",
+       "team": "DAL",
+       "pos": "F",
+       "role": "base",
+       "g": 3,
+       "a": 8,
+       "so": 0,
+       "pts": 14,
+       "gp": null
+      },
+      "barkov-f": {
+       "name": "Barkov",
+       "team": "FLA",
+       "pos": "F",
+       "role": "base",
+       "g": 0,
+       "a": 0,
+       "so": 0,
+       "pts": 0,
+       "gp": null
+      },
+      "chychrun-d": {
+       "name": "Chychrun",
+       "team": "WSH",
+       "pos": "D",
+       "role": "base",
+       "g": 1,
+       "a": 4,
+       "so": 0,
+       "pts": 7,
+       "gp": null
+      },
+      "vasilevskij-g": {
+       "name": "Vasilevskij",
+       "team": "TBL",
+       "pos": "G",
+       "role": "base",
+       "g": 0,
+       "a": 0,
+       "so": 0,
+       "pts": 0,
+       "gp": null
+      },
+      "eichel-f": {
+       "name": "Eichel",
+       "team": "VGK",
+       "pos": "F",
+       "role": "sub",
+       "g": 5,
+       "a": 9,
+       "so": 0,
+       "pts": 19,
+       "gp": null
+      }
+     }
+    },
+    "Chlebis": {
+     "pts": 79,
+     "players": {
+      "necas-f": {
+       "name": "Nečas",
+       "team": "COL",
+       "pos": "F",
+       "role": "base",
+       "g": 5,
+       "a": 6,
+       "so": 0,
+       "pts": 16,
+       "gp": null
+      },
+      "kaprizov-f": {
+       "name": "Kaprizov",
+       "team": "MIN",
+       "pos": "F",
+       "role": "base",
+       "g": 11,
+       "a": 6,
+       "so": 0,
+       "pts": 28,
+       "gp": null
+      },
+      "guentzel-f": {
+       "name": "Guentzel",
+       "team": "TBL",
+       "pos": "F",
+       "role": "base",
+       "g": 4,
+       "a": 5,
+       "so": 0,
+       "pts": 13,
+       "gp": null
+      },
+      "hughes-d": {
+       "name": "Hughes",
+       "team": "MIN",
+       "pos": "D",
+       "role": "base",
+       "g": 2,
+       "a": 11,
+       "so": 0,
+       "pts": 17,
+       "gp": null
+      },
+      "sorokin-g": {
+       "name": "Sorokin",
+       "team": "NYI",
+       "pos": "G",
+       "role": "base",
+       "g": 0,
+       "a": 0,
+       "so": 1,
+       "pts": 5,
+       "gp": null
+      }
+     }
+    },
+    "Svatý": {
+     "pts": 95,
+     "players": {
+      "mcdavid-f": {
+       "name": "McDavid",
+       "team": "EDM",
+       "pos": "F",
+       "role": "base",
+       "g": 8,
+       "a": 23,
+       "so": 0,
+       "pts": 39,
+       "gp": null
+      },
+      "pastrnak-f": {
+       "name": "Pastrňák",
+       "team": "BOS",
+       "pos": "F",
+       "role": "base",
+       "g": 6,
+       "a": 10,
+       "so": 0,
+       "pts": 22,
+       "gp": null
+      },
+      "nylander-f": {
+       "name": "Nylander",
+       "team": "TOR",
+       "pos": "F",
+       "role": "base",
+       "g": 6,
+       "a": 10,
+       "so": 0,
+       "pts": 22,
+       "gp": null
+      },
+      "dahlin-d": {
+       "name": "Dahlin",
+       "team": "BUF",
+       "pos": "D",
+       "role": "base",
+       "g": 2,
+       "a": 2,
+       "so": 0,
+       "pts": 8,
+       "gp": null
+      },
+      "dobes-g": {
+       "name": "Dobeš",
+       "team": "MTL",
+       "pos": "G",
+       "role": "base",
+       "g": 0,
+       "a": 0,
+       "so": 0,
+       "pts": 0,
+       "gp": null
+      },
+      "sergacov-d": {
+       "name": "Sergačov",
+       "team": "UTA",
+       "pos": "D",
+       "role": "sub",
+       "g": 1,
+       "a": 1,
+       "so": 0,
+       "pts": 4,
+       "gp": null
+      }
+     }
+    },
+    "BoB": {
+     "pts": 86,
+     "players": {
+      "celebrini-f": {
+       "name": "Celebrini",
+       "team": "SJS",
+       "pos": "F",
+       "role": "base",
+       "g": 5,
+       "a": 9,
+       "so": 0,
+       "pts": 19,
+       "gp": null
+      },
+      "connor-f": {
+       "name": "Connor",
+       "team": "WPG",
+       "pos": "F",
+       "role": "base",
+       "g": 9,
+       "a": 3,
+       "so": 0,
+       "pts": 21,
+       "gp": null
+      },
+      "rantanen-f": {
+       "name": "Rantanen",
+       "team": "DAL",
+       "pos": "F",
+       "role": "base",
+       "g": 5,
+       "a": 8,
+       "so": 0,
+       "pts": 18,
+       "gp": null
+      },
+      "schaefer-d": {
+       "name": "Schaefer",
+       "team": "NYI",
+       "pos": "D",
+       "role": "base",
+       "g": 2,
+       "a": 7,
+       "so": 0,
+       "pts": 13,
+       "gp": null
+      },
+      "oettinger-g": {
+       "name": "Oettinger",
+       "team": "DAL",
+       "pos": "G",
+       "role": "base",
+       "g": 0,
+       "a": 0,
+       "so": 3,
+       "pts": 15,
+       "gp": null
+      }
+     }
+    },
+    "Dvory": {
+     "pts": 71,
+     "players": {
+      "draisaitl-f": {
+       "name": "Draisaitl",
+       "team": "EDM",
+       "pos": "F",
+       "role": "base",
+       "g": 10,
+       "a": 11,
+       "so": 0,
+       "pts": 31,
+       "gp": null
+      },
+      "matthews-f": {
+       "name": "Matthews",
+       "team": "TOR",
+       "pos": "F",
+       "role": "base",
+       "g": 8,
+       "a": 10,
+       "so": 0,
+       "pts": 26,
+       "gp": null
+      },
+      "johnston-f": {
+       "name": "Johnston",
+       "team": "DAL",
+       "pos": "F",
+       "role": "base",
+       "g": 1,
+       "a": 5,
+       "so": 0,
+       "pts": 7,
+       "gp": null
+      },
+      "werenski-d": {
+       "name": "Werenski",
+       "team": "CBJ",
+       "pos": "D",
+       "role": "base",
+       "g": 0,
+       "a": 6,
+       "so": 0,
+       "pts": 6,
+       "gp": null
+      },
+      "bobrovskij-g": {
+       "name": "Bobrovskij",
+       "team": "FLA",
+       "pos": "G",
+       "role": "base",
+       "g": 0,
+       "a": 0,
+       "so": 0,
+       "pts": 0,
+       "gp": null
+      },
+      "aho-f": {
+       "name": "Aho",
+       "team": "CAR",
+       "pos": "F",
+       "role": "sub",
+       "g": 0,
+       "a": 1,
+       "so": 0,
+       "pts": 1,
+       "gp": null
+      }
+     }
+    }
+   }
+  }
+ }
+}

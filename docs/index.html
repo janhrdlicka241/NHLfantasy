@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fantasy NHL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700;800&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>html{padding-top:env(safe-area-inset-top,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<header>
+  <div class="wrap hdr">
+    <h1>Fantasy <span>NHL</span><span class="ver">v1.00</span></h1>
+    <label class="login">Přihlášen<select id="meSel"></select></label>
+    <div class="month">
+      <button id="prevM" aria-label="Předchozí měsíc">‹</button>
+      <div><div id="mLabel">…</div><div class="demo" id="mSub"></div></div>
+      <button id="nextM" aria-label="Další měsíc">›</button>
+    </div>
+  </div>
+</header>
+<div class="wrap">
+  <nav role="tablist">
+    <button role="tab" data-tab="tabulka">Tabulka</button>
+    <button role="tab" data-tab="den">Den</button>
+    <button role="tab" data-tab="tymy">Týmy</button>
+    <button role="tab" data-tab="zraneni">Zranění <span id="injBadge" class="badge"></span></button>
+    <button role="tab" data-tab="nhl">NHL body</button>
+    <button role="tab" data-tab="vyuctovani">Vyúčtování</button>
+  </nav>
+  <main id="view"><div class="panel empty">Načítám data…</div></main>
+  <div class="upd" id="upd"></div>
+</div>
+<div class="overlay" id="whoOv" hidden>
+  <div class="panel"><h2>Kdo jsi?</h2><div class="tname">Vyber svoje jméno. Změnit ho jde kdykoli nahoře v hlavičce.</div><div class="who-grid" id="whoGrid"></div></div>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

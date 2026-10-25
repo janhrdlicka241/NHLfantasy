@@ -1,0 +1,33 @@
+rules_version = '2';
+// Číst může každý. Zapisovat z aplikace jde jen:
+//  - vlastní návrh sestavy (dokud není potvrzená),
+//  - výběr náhradníka (jen nový záznam ve stavu "pending"),
+//  - příznak "vyplaceno" u měsíce.
+// Všechno ostatní zapisuje jen synchronizační skript (servisní účet pravidla obchází).
+service cloud.firestore {
+  match /databases/{db}/documents {
+    match /{document=**} { allow read: if true; }
+
+    function owners() { return get(/databases/$(db)/documents/config/league).data.owners; }
+
+    match /rosterPicks/{owner} {
+      allow create, update: if owner in owners()
+        && !get(/databases/$(db)/documents/rosters/$(owner)).data.locked
+        && request.resource.data.owner == owner
+        && request.resource.data.keys().hasOnly(['owner', 'players', 'status', 'confirmedAt', 'reason', 'updatedAt'])
+        && request.resource.data.status in ['draft', 'pending'];
+    }
+
+    match /picks/{id} {
+      allow create: if request.resource.data.owner in owners()
+        && request.resource.data.keys().hasOnly(['injuryId', 'owner', 'playerId', 'name', 'team', 'pos', 'createdAt', 'status'])
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time;
+    }
+
+    match /months/{key} {
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paid'])
+        && request.resource.data.paid is bool;
+    }
+  }
+}
