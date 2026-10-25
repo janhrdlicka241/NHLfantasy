@@ -179,9 +179,12 @@ export function vTymy(S, U) {
     return `<div class="panel team"><div class="th"><div><h3>${esc(o)}</h3></div><div class="pts">${tot}</div></div>
       ${r.slots.map((sl) => { const inj = openInj(S, o, sl.key), a = activeOf(S, o, sl);
         const bp = mp[sl.base.id]?.pts || 0, spt = sl.sub ? mp[sl.sub.id]?.pts || 0 : 0;
+        const line = (id) => { const p = mp[id] || { g: 0, a: 0, so: 0, gp: 0 };
+          return `<div class="mstat">${sl.pos === "G" ? `${p.so} ${p.so === 1 ? "nula" : p.so >= 2 && p.so <= 4 ? "nuly" : "nul"} · ${p.a} A` : `${p.g} G · ${p.a} A`}${p.gp ? ` · ${p.gp} záp.` : ""}</div>`; };
         return `<div class="slotrow"><span class="pos ${sl.pos}">${POSL[sl.pos]}</span>
           <div class="nb"><div>${esc(sl.base.name)} <span class="nhl">${sl.base.team}</span> ${inj ? '<span class="tag inj">ZRANĚN</span>' : ""}</div>
-          ${sl.sub ? `<div>${esc(sl.sub.name)} <span class="nhl">${sl.sub.team}</span> <span class="tag sub">náhradník</span> <span class="num">${spt} b.</span></div>` : inj ? `<div class="err">čeká na náhradníka</div>` : ""}
+          ${line(sl.base.id)}
+          ${sl.sub ? `<div>${esc(sl.sub.name)} <span class="nhl">${sl.sub.team}</span> <span class="tag sub">náhradník</span> <span class="num">${spt} b.</span></div>${line(sl.sub.id)}` : inj ? `<div class="err">čeká na náhradníka</div>` : ""}
           <div class="gamesc">${slotLabel(sl.key)} · ${sl.games}/82 zápasů</div></div>
           <div class="num"><b>${bp}</b></div></div>`; }).join("")}
     </div>`; }).join("")}</div>

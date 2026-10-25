@@ -166,3 +166,5 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .err{color:var(--red);font-weight:600}
 .list{max-height:420px;overflow:auto;display:grid;gap:6px}
 .opt.taken{opacity:.5}
+
+.mstat{font-size:13px;font-weight:600;color:var(--fg);font-variant-numeric:tabular-nums}
