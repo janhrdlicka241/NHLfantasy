@@ -154,7 +154,7 @@ function builder(S, U) {
     : rp.status === "rejected" ? `<div class="status bad">Sestavu nešlo potvrdit: ${esc(rp.reason)}. Uprav ji a potvrď znovu.</div>` : "";
   return `<div class="panel team builder" style="padding:14px">
     <div><h3 style="font-family:var(--display);font-size:24px;text-transform:uppercase;margin:0">Moje sestava</h3>
-    <div class="tname">Vyber 3 útočníky, 1 obránce a 1 brankáře. Každý hráč NHL může být jen v jednom týmu – rozhoduje, kdo dřív potvrdí. Body se počítají od potvrzení.</div></div>
+    <div class="tname">Vyber 3 útočníky, 1 obránce a 1 brankáře. Každý hráč NHL může být jen v jednom týmu – rozhoduje, kdo dřív potvrdí. Sestava potvrzená do 31. 10. se počítá zpětně od začátku sezóny, později až od potvrzení.</div></div>
     ${st}
     <div class="panel">${SLOTS.map((s) => { const p = chosen[s.key]; const open = U.slotOpen === s.key; return `<div class="slotrow">
       <span class="pos ${s.pos}">${POSL[s.pos]}</span>
