@@ -10,7 +10,7 @@ const norm = (o) => Array.isArray(o) ? o.map(norm) : o && typeof o === "object" 
   ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, norm(v)])) : iso(o);
 
 let raf = 0;
-const S = { league: null, rosters: {}, rosterPicks: {}, months: {}, injuries: [], picks: [], feed: [], pool: null, upcoming: null, recent: null, meta: null };
+const S = { league: null, rosters: {}, rosterPicks: {}, months: {}, injuries: [], picks: [], feed: [], pool: null, upcoming: null, results: null, meta: null };
 const store = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 const keep = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 const U = { me: store("fnhl-me"), month: null, tab: "tabulka", openT: new Set(), openM: new Set(), q: {}, sel: {}, slotOpen: null, pickOpen: null, sortK: "pts", onlyFree: false, sortG: "w", allG: false };
@@ -22,7 +22,7 @@ const one = (path, key) => onSnapshot(doc(db, path), (d) => { S[key] = d.exists(
 const map = (col, key) => onSnapshot(collection(db, col), (q) => { S[key] = Object.fromEntries(q.docs.map((d) => [d.id, norm(d.data())])); render(); }, err);
 const list = (qq, key) => onSnapshot(qq, (q) => { S[key] = q.docs.map((d) => ({ ...norm(d.data()), id: d.id })); render(); }, err);
 function err(e) { console.error(e); document.getElementById("view").innerHTML = `<div class="panel empty">Nepodařilo se načíst data (${V.esc(e.code || e.message)}). Zkontroluj firebase-config.js a pravidla Firestore.</div>`; }
-one("config/league", "league"); one("public/pool", "pool"); one("public/upcoming", "upcoming"); one("public/recent", "recent"); one("meta/state", "meta");
+one("config/league", "league"); one("public/pool", "pool"); one("public/upcoming", "upcoming"); one("public/results", "results"); one("meta/state", "meta");
 map("rosters", "rosters"); map("rosterPicks", "rosterPicks"); map("months", "months");
 list(query(collection(db, "injuries"), where("active", "==", true)), "injuries");
 list(query(collection(db, "picks"), where("status", "==", "pending")), "picks");
@@ -84,6 +84,7 @@ document.getElementById("view").addEventListener("click", async (e) => {
   else if (a === "mopen") { if (e.target.closest('[data-act="paid"]')) return; const k = t.dataset.m; U.openM.has(k) ? U.openM.delete(k) : U.openM.add(k); }
   else if (a === "paid") { e.stopPropagation(); const k = t.dataset.m; try { await updateDoc(doc(db, "months", k), { paid: !S.months[k].paid }); } catch (er) { alert2(er.message); } return; }
   else if (a === "sort") U.sortK = t.dataset.k;
+  else if (a === "games") U.games = t.dataset.k;
   else if (a === "sortg") U.sortG = t.dataset.k;
   else if (a === "allg") U.allG = !U.allG;
   else if (a === "free") U.onlyFree = t.checked;

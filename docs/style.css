@@ -168,3 +168,11 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .opt.taken{opacity:.5}
 
 .mstat{font-size:13px;font-weight:600;color:var(--fg);font-variant-numeric:tabular-nums}
+.score{font-family:var(--mono);font-weight:700;padding:0 6px}
+.lose{color:var(--muted)}
+.daysum{display:flex;flex-wrap:wrap;gap:6px 14px;margin-bottom:8px}
+.glist{display:grid;gap:4px}
+.grow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.gname{flex:1;min-width:120px}
+.gpts{font-family:var(--mono);min-width:32px;text-align:right}
+.gpts.zero{color:var(--muted);font-weight:500}

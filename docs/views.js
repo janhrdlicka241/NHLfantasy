@@ -113,35 +113,49 @@ export function vTabulka(S, U) {
   <p class="note">Bilance = 5 Kč × (počet hráčů × moje body − součet bodů všech). Plus dostáváš, minus platíš.</p>`;
 }
 
-// --- Den ---
-export function vDen(S) {
+// --- Zápasy (odehrané 7 dní / nadcházející 7 dní) ---
+const statTxt = (e) => e.pos === "G" ? [e.so ? "nula" : "", e.a ? e.a + " A" : ""].filter(Boolean).join(" · ") || "bez bodu"
+  : [e.g ? e.g + " G" : "", e.a ? e.a + " A" : ""].filter(Boolean).join(" · ") || "bez bodu";
+const dayLabel = (date) => new Date(date + "T12:00:00Z").toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "numeric" });
+export function vDen(S, U) {
+  const mode = U.games || "past";
+  const seg = `<div class="seg"><button class="btn ${mode === "past" ? "pri" : ""}" data-act="games" data-k="past">Odehrané</button><button class="btn ${mode === "next" ? "pri" : ""}" data-act="games" data-k="next">Nadcházející</button></div>`;
+  if (mode === "past") {
+    const days = Object.entries(S.results?.days || {}).sort((a, b) => b[0].localeCompare(a[0]));
+    if (!days.length) return `<div class="dayhead"><h2>Zápasy</h2></div>${seg}<div class="panel empty">Výsledky se načtou při další synchronizaci.</div>`;
+    return `<div class="dayhead"><h2>Zápasy</h2><span class="tname">datum podle času NHL</span></div>${seg}
+    ${days.map(([date, gs]) => {
+      const per = {}; for (const g of gs) for (const e of g.pl || []) per[e.owner] = (per[e.owner] || 0) + e.pts;
+      const sums = Object.entries(per).sort((a, b) => b[1] - a[1]);
+      return `<h3 class="mh">${dayLabel(date)}</h3>
+      ${sums.length ? `<div class="daysum">${sums.map(([o, p]) => `<span class="who2">${ownChip(S, o)} <b>+${p}</b></span>`).join("")}</div>` : ""}
+      <div class="games">${[...gs].sort((a, b) => (b.pl?.length || 0) - (a.pl?.length || 0) || a.start.localeCompare(b.start)).map((g) => {
+        const win = g.as > g.hs ? "a" : g.hs > g.as ? "h" : "";
+        return `<div class="panel game ${g.pl?.length ? "" : "dim"}">
+        <div class="gt"><span class="match"><span class="${win === "a" ? "" : "lose"}">${g.away}</span> <span class="score">${g.as ?? "–"} : ${g.hs ?? "–"}</span> <span class="${win === "h" ? "" : "lose"}">${g.home}</span></span>
+        ${g.last === "OT" ? '<span class="chip">pp</span>' : g.last === "SO" ? '<span class="chip">sn</span>' : ""}
+        <span class="tname">${g.pl?.length ? g.pl.length + " našich" : "nikdo z nás"}</span></div>
+        ${g.pl?.length ? `<div class="glist">${[...g.pl].sort((a, b) => b.pts - a.pts).map((e) => `<div class="grow"><span class="pos ${e.pos}">${POSL[e.pos]}</span>
+          <span class="gname">${esc(short(e.name))} <span class="nhl">${e.team}</span></span><span class="tname">${statTxt(e)}</span>
+          ${ownChip(S, e.owner)}<b class="gpts ${e.pts ? "" : "zero"}">${e.pts ? "+" + e.pts : "0"}</b></div>`).join("")}</div>` : ""}
+      </div>`; }).join("")}</div>`; }).join("")}`;
+  }
   const byTeam = new Map();
   for (const [o, r] of Object.entries(S.rosters)) for (const sl of r.slots || []) {
     const a = activeOf(S, o, sl); if (!a) continue;
     if (!byTeam.has(a.team)) byTeam.set(a.team, []);
-    byTeam.get(a.team).push({ own: o, n: a.name, pos: sl.pos, t: a.team, sub: a !== sl.base });
+    byTeam.get(a.team).push({ own: o, n: a.name, pos: sl.pos, t: a.team });
   }
   const groups = {};
   for (const g of S.upcoming?.games || []) {
     const d = new Date(g.start), k = fDay(d);
     (groups[k] ||= []).push({ d, ...g, pl: [...(byTeam.get(g.away) || []), ...(byTeam.get(g.home) || [])] });
   }
-  const days = Object.entries(S.recent?.days || {}).sort((a, b) => b[0].localeCompare(a[0]));
-  const last = days[0];
-  let res = "";
-  if (last) {
-    const per = {}; for (const e of last[1]) (per[e.owner] ||= { pts: 0, ev: [] }), per[e.owner].pts += e.pts, per[e.owner].ev.push(e);
-    res = `<h3 class="mh">Poslední zápasy <span class="tname">${new Date(last[0] + "T12:00:00Z").toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" })} (čas NHL)</span></h3>
-    <div class="panel scroll"><table><tbody>${Object.entries(per).sort((a, b) => b[1].pts - a[1].pts).map(([o, x]) => `<tr><td style="width:1%">${ownChip(S, o)}</td>
-      <td>${x.ev.map((e) => `${esc(short(e.name))} ${[e.g ? e.g + "G" : "", e.a ? e.a + "A" : "", e.so ? "nula" : ""].filter(Boolean).join(" ")}`).join(" · ")}</td>
-      <td class="num"><b>+${x.pts}</b></td></tr>`).join("")}</tbody></table></div>`;
-  }
-  return `<div class="dayhead"><h2>Nadcházející zápasy</h2><span class="tname">časy v našem čase</span></div>
+  return `<div class="dayhead"><h2>Zápasy</h2><span class="tname">časy v našem čase</span></div>${seg}
   ${Object.keys(groups).length ? Object.entries(groups).map(([day, gs]) => `<h3 class="mh">${day}</h3><div class="games">${gs.map((g) => `<div class="panel game ${g.pl.length ? "" : "dim"}">
     <div class="gt"><span class="time">${fTime(g.d)}</span><span class="match">${g.away} <span class="tname">@</span> ${g.home}</span><span class="tname">${g.pl.length ? g.pl.length + " našich" : "nikdo z nás"}</span></div>
     ${g.pl.length ? `<div class="gp">${g.pl.map((p) => `<span class="who2"><span class="pos ${p.pos}">${POSL[p.pos]}</span> ${esc(short(p.n))} <span class="nhl">${p.t}</span> ${ownChip(S, p.own)}</span>`).join("")}</div>` : ""}
-  </div>`).join("")}</div>`).join("") : `<div class="panel empty">Rozpis se načte při další synchronizaci.</div>`}
-  ${res}`;
+  </div>`).join("")}</div>`).join("") : `<div class="panel empty">Rozpis se načte při další synchronizaci.</div>`}`;
 }
 
 // --- Týmy ---
