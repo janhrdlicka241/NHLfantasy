@@ -135,6 +135,10 @@ export function vDen(S, U) {
         <div class="gt"><span class="match"><span class="${win === "a" ? "" : "lose"}">${g.away}</span> <span class="score">${g.as ?? "–"} : ${g.hs ?? "–"}</span> <span class="${win === "h" ? "" : "lose"}">${g.home}</span></span>
         ${g.last === "OT" ? '<span class="chip">pp</span>' : g.last === "SO" ? '<span class="chip">sn</span>' : ""}
         <span class="tname">${g.pl?.length ? g.pl.length + " našich" : "nikdo z nás"}</span></div>
+        ${g.goals?.length ? `<div class="goals">${g.goals.map((gl) => { const ow = (id) => (g.pl || []).find((e) => e.id === id)?.owner;
+          const nm = (p) => { const o = ow(p.id); return o ? `<span class="ours" style="--oc:${col(S, o)}">${esc(p.n)}</span>` : esc(p.n); };
+          return `<div class="goal"><span class="gtime">${gl.p >= 4 ? "prodl." : gl.p + ". tř."} ${gl.t}</span><span class="gteam ${gl.team === g.away ? "" : "home"}">${gl.team}</span>
+          <span class="gwho"><b>${nm(gl.s)}</b>${gl.a?.length ? ` <span class="tname">(${gl.a.map(nm).join(", ")})</span>` : ""}${gl.k ? ` <span class="chip">${{PP:"přesilovka",SH:"oslabení",EN:"prázdná brána"}[gl.k] || gl.k}</span>` : ""}</span></div>`; }).join("")}</div>` : ""}
         ${g.pl?.length ? `<div class="glist">${[...g.pl].sort((a, b) => b.pts - a.pts).map((e) => `<div class="grow"><span class="pos ${e.pos}">${POSL[e.pos]}</span>
           <span class="gname">${esc(short(e.name))} <span class="nhl">${e.team}</span></span><span class="tname">${statTxt(e)}</span>
           ${ownChip(S, e.owner)}<b class="gpts ${e.pts ? "" : "zero"}">${e.pts ? "+" + e.pts : "0"}</b></div>`).join("")}</div>` : ""}
