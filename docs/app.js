@@ -13,7 +13,7 @@ let raf = 0;
 const S = { league: null, rosters: {}, rosterPicks: {}, months: {}, injuries: [], picks: [], feed: [], pool: null, upcoming: null, recent: null, meta: null };
 const store = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 const keep = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
-const U = { me: store("fnhl-me"), month: null, tab: "tabulka", openT: new Set(), openM: new Set(), q: {}, sel: {}, slotOpen: null, pickOpen: null, sortK: "pts", onlyFree: false };
+const U = { me: store("fnhl-me"), month: null, tab: "tabulka", openT: new Set(), openM: new Set(), q: {}, sel: {}, slotOpen: null, pickOpen: null, sortK: "pts", onlyFree: false, sortG: "w", allG: false };
 const TABS = ["tabulka", "den", "tymy", "zraneni", "nhl", "vyuctovani"];
 const h = (location.hash || "").slice(1); if (TABS.includes(h)) U.tab = h;
 
@@ -84,6 +84,8 @@ document.getElementById("view").addEventListener("click", async (e) => {
   else if (a === "mopen") { if (e.target.closest('[data-act="paid"]')) return; const k = t.dataset.m; U.openM.has(k) ? U.openM.delete(k) : U.openM.add(k); }
   else if (a === "paid") { e.stopPropagation(); const k = t.dataset.m; try { await updateDoc(doc(db, "months", k), { paid: !S.months[k].paid }); } catch (er) { alert2(er.message); } return; }
   else if (a === "sort") U.sortK = t.dataset.k;
+  else if (a === "sortg") U.sortG = t.dataset.k;
+  else if (a === "allg") U.allG = !U.allG;
   else if (a === "free") U.onlyFree = t.checked;
   else if (a === "sel") U.sel[t.dataset.ctx] = +t.dataset.id;
   else if (a === "slot") { U.slotOpen = U.slotOpen === t.dataset.k ? null : t.dataset.k; }

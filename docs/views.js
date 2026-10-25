@@ -60,7 +60,7 @@ export function standings(S, mk) {
 // --- picker hráčů (sestava i náhradník) ---
 function picker(S, U, ctx, pos, taken) {
   const q = (U.q[ctx] || "").toLowerCase();
-  const list = poolList(S, pos).filter((p) => !q || p.name.toLowerCase().includes(q) || p.team.toLowerCase() === q).sort((a, b) => b.score - a.score).slice(0, 40);
+  const list = poolList(S, pos).filter((p) => !q || p.name.toLowerCase().includes(q) || p.team.toLowerCase() === q).sort((a, b) => b.score - a.score).slice(0, pos === "G" ? 999 : 40);
   const sel = U.sel[ctx];
   return `<div class="picker">
     <input class="srch" id="q-${ctx}" data-ctx="${ctx}" placeholder="Hledat jméno nebo tým (např. EDM)…" value="${esc(U.q[ctx] || "")}" autocomplete="off">
@@ -235,7 +235,10 @@ export function vNhl(S, U) {
   const all = [...sk].sort(cmp).filter(f).slice(0, 50);
   const fw = sk.filter((r) => r.pos === "F").sort(cmp).filter(f).slice(0, 10);
   const df = sk.filter((r) => r.pos === "D").sort(cmp).filter(f).slice(0, 10);
-  const gl = poolList(S, "G").sort((a, b) => b.w - a.w || b.so - a.so).filter(f).slice(0, 10);
+  const GK = { w: (r) => r.w, so: (r) => r.so, sv: (r) => (r.gp >= 3 ? r.sv || 0 : 0), gaa: (r) => (r.gp >= 3 && r.gaa != null ? -r.gaa : -99) };
+  const glAll = poolList(S, "G").sort((a, b) => GK[U.sortG](b) - GK[U.sortG](a) || b.w - a.w).filter(f);
+  const gl = U.allG ? glAll : glAll.slice(0, 10);
+  const thG = (k, l) => `<th class="num"><button class="sortb ${U.sortG === k ? "on" : ""}" data-act="sortg" data-k="${k}">${l}${U.sortG === k ? " ▾" : ""}</button></th>`;
   const thS = (k, l) => `<th class="num"><button class="sortb ${U.sortK === k ? "on" : ""}" data-act="sort" data-k="${k}">${l}${U.sortK === k ? " ▾" : ""}</button></th>`;
   const tbl = (rows) => `<div class="panel scroll"><table><thead><tr><th></th><th>Hráč</th><th class="num">Z</th>${thS("g", "G")}${thS("a", "A")}${thS("pts", "B")}<th>Majitel</th></tr></thead>
     <tbody>${rows.map((r, i) => `<tr><td class="rank" style="font-size:17px">${i + 1}</td><td><span class="pos ${r.pos}">${POSL[r.pos]}</span> ${esc(r.name)} <span class="nhl">${r.team}</span></td>
@@ -249,10 +252,12 @@ export function vNhl(S, U) {
   <h3 class="mh" id="top50">Top 50 hráčů</h3>${tbl(all)}
   <h3 class="mh" id="topf">Top 10 útočníků</h3>${tbl(fw)}
   <h3 class="mh" id="topd">Top 10 obránců</h3>${tbl(df)}
-  <h3 class="mh" id="topg">Top 10 brankářů <span class="tname">podle výher</span></h3>
-  <div class="panel scroll"><table><thead><tr><th></th><th>Brankář</th><th class="num">Z</th><th class="num">V</th><th class="num">P</th><th class="num">PvP</th><th class="num">GAA</th><th class="num">Úsp.</th><th class="num">Nuly</th><th>Majitel</th></tr></thead>
+  <h3 class="mh" id="topg">${U.allG ? `Všichni brankáři (${glAll.length})` : "Top 10 brankářů"}</h3>
+  <div class="panel scroll"><table><thead><tr><th></th><th>Brankář</th><th class="num">Z</th>${thG("w", "V")}<th class="num">P</th><th class="num">PvP</th>${thG("gaa", "GAA")}${thG("sv", "Úsp.")}${thG("so", "Nuly")}<th>Majitel</th></tr></thead>
   <tbody>${gl.map((r, i) => `<tr><td class="rank" style="font-size:17px">${i + 1}</td><td><span class="pos G">B</span> ${esc(r.name)} <span class="nhl">${r.team}</span></td>
-    <td class="num">${r.gp}</td><td class="num"><b>${r.w}</b></td><td class="num">${r.l}</td><td class="num">${r.ot}</td><td class="num">${r.gaa ?? "–"}</td><td class="num">${r.sv != null ? r.sv.toFixed(3).replace(/^0/, "") : "–"}</td><td class="num"><b>${r.so}</b></td><td>${ownChip(S, own.get(r.id))}</td></tr>`).join("")}</tbody></table></div>`;
+    <td class="num">${r.gp}</td><td class="num"><b>${r.w}</b></td><td class="num">${r.l}</td><td class="num">${r.ot}</td><td class="num">${r.gaa ?? "–"}</td><td class="num">${r.sv != null ? r.sv.toFixed(3).replace(/^0/, "") : "–"}</td><td class="num"><b>${r.so}</b></td><td>${ownChip(S, own.get(r.id))}</td></tr>`).join("")}</tbody></table></div>
+  <div class="acts" style="margin-top:10px"><button class="btn pri" data-act="allg">${U.allG ? "Zobrazit jen top 10" : `Zobrazit všechny brankáře (${glAll.length})`}</button></div>
+  <p class="note">Řadit jde kliknutím na V, GAA, Úsp. nebo Nuly. U GAA a úspěšnosti se počítají jen brankáři s aspoň 3 zápasy.</p>`;
 }
 
 // --- Vyúčtování ---
