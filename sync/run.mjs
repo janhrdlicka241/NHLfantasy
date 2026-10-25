@@ -83,17 +83,17 @@ async function sync(fs) {
     d = next;
   }
   retroGames.sort((a, b) => a.start.localeCompare(b.start));
-  const goalsOf = new Map(); // id zápasu -> góly
+  const cache = new Map(); // id zápasu -> [boxscore, landing]
   for (const g of retroGames) {
     const [box, land] = await Promise.all([nhl.boxscore(g.id), nhl.landing(g.id)]);
-    goalsOf.set(g.id, L.parseGoals(land));
+    cache.set(g.id, [box, land]);
     L.processGame(st, g, L.parseGame(box, land), now, { only: retroOwners, quiet: g.date < addDays(today, -2) });
   }
   if (retroGames.length) console.log(`Zpětně přepočteno zápasů: ${retroGames.length}`);
   games.sort((a, b) => a.start.localeCompare(b.start));
   for (const g of games) {
     const [box, land] = await Promise.all([nhl.boxscore(g.id), nhl.landing(g.id)]);
-    goalsOf.set(g.id, L.parseGoals(land));
+    cache.set(g.id, [box, land]);
     L.processGame(st, g, L.parseGame(box, land), now);
     done.set(g.id, g.date);
   }
@@ -113,15 +113,22 @@ async function sync(fs) {
   const resSnap = await fs.doc("public/results").get();
   const prev = new Map();
   for (const list of Object.values(resSnap.exists ? resSnap.data().days || {} : {})) for (const g of list) prev.set(g.id, g);
+  // otisk sestav – když se změní (nová sestava, náhradník), zápasy se přepočítají
+  const sig = Object.entries(st.rosters).filter(([, r]) => r.locked).map(([o, r]) => o + ":" + r.slots.map((s) => `${s.base.id}/${s.sub?.id || ""}`).join(",")).sort().join(";");
   const days = {};
   for (const g of finals.sort((a, b) => a.start.localeCompare(b.start))) {
     const old = prev.get(g.id);
-    const pl = (old?.pl || []).filter((e) => !retroOwners.has(e.owner));
-    for (const e of st.log) if (e.gameId === g.id && !pl.some((x) => x.owner === e.owner && x.id === e.id)) pl.push(e);
-    let goals = goalsOf.get(g.id) || old?.goals;
-    if (!goals) { try { goals = L.parseGoals(await nhl.landing(g.id)); } catch { goals = []; } }
-    (days[g.date] ||= []).push({ id: g.id, start: g.start, away: g.away, home: g.home, as: g.as, hs: g.hs, last: g.last, pl, goals });
+    let entry = old && old.sig === sig && old.goals ? old : null;
+    if (!entry) {
+      try {
+        const [box, land] = cache.get(g.id) || await Promise.all([nhl.boxscore(g.id), nhl.landing(g.id)]);
+        entry = { pl: L.appearances(st, g, L.parseGame(box, land)), goals: L.parseGoals(land), sig };
+      } catch (e) { console.log(`Zápas ${g.id}: ${e.message}`); entry = { pl: old?.pl || [], goals: old?.goals || [], sig: "" }; }
+    }
+    (days[g.date] ||= []).push({ id: g.id, start: g.start, away: g.away, home: g.home, as: g.as, hs: g.hs, last: g.last, pl: entry.pl, goals: entry.goals, sig: entry.sig });
   }
+  const all = Object.values(days).flat();
+  console.log(`Zápasy za 7 dní: ${all.length}, gólů: ${all.reduce((t, g) => t + (g.goals?.length || 0), 0)}, nástupů našich hráčů: ${all.reduce((t, g) => t + (g.pl?.length || 0), 0)}`);
   const extra = {
     "meta/state": st.meta,
     "public/pool": { ...pool, updated: now },

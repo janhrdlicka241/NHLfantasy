@@ -190,6 +190,23 @@ export function parseGoals(landing) {
   return out;
 }
 
+// Kdo z našich hráčů v zápase nastoupil a kolik by dostal bodů (jen pro zobrazení v záložce Zápasy)
+export function appearances(st, game, parsed) {
+  const { lineup, so, stats } = parsed, out = [];
+  for (const [owner, roster] of Object.entries(st.rosters)) {
+    if (!roster.locked) continue;
+    for (const slot of roster.slots) {
+      if (game.start <= slot.activeFrom) continue;
+      const cand = slot.sub && game.start > slot.sub.since && lineup.has(slot.sub.id) ? slot.sub : lineup.has(slot.base.id) ? slot.base : null;
+      if (!cand) continue;
+      const s = stats.get(cand.id) || { g: 0, a: 0 };
+      const shut = slot.pos === "G" && so.has(cand.id) ? 1 : 0, g = slot.pos === "G" ? 0 : s.g;
+      out.push({ owner, id: cand.id, name: cand.name, team: cand.team, pos: slot.pos, g, a: s.a, so: shut, pts: points(slot.pos, g, s.a, shut) });
+    }
+  }
+  return out;
+}
+
 function addMonth(st, date, owner, who, slot, role, g, a, so, pts) {
   const key = monthKey(date);
   const m = st.months[key] ||= { key, owners: {}, paid: false };
