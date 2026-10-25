@@ -256,7 +256,7 @@ export function processGame(st, game, parsed, now, opts = {}) {
         const g = slot.pos === "G" ? 0 : s.g; // gól brankáře zatím nebodujeme
         const pts = points(slot.pos, g, s.a, shut);
         const added = addMonth(st, game.date, owner, active, slot, active === slot.base ? "base" : "sub", g, s.a, shut, pts);
-        if (added && pts) st.log.push({ date: game.date, gameId: game.id, owner, id: active.id, name: active.name, team: active.team, pos: slot.pos, g, a: s.a, so: shut, pts });
+        if (added) st.log.push({ date: game.date, gameId: game.id, owner, id: active.id, name: active.name, team: active.team, pos: slot.pos, g, a: s.a, so: shut, pts });
       }
     }
   }

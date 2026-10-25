@@ -24,6 +24,7 @@ export async function scheduleWeek(date) {
     games: (d.games || []).map((g) => ({
       id: g.id, date: d.date, start: g.startTimeUTC, type: g.gameType, state: g.gameState,
       away: g.awayTeam?.abbrev, home: g.homeTeam?.abbrev,
+      as: g.awayTeam?.score ?? null, hs: g.homeTeam?.score ?? null, last: g.gameOutcome?.lastPeriodType || null,
     })),
   }));
 }

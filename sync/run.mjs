@@ -62,9 +62,11 @@ async function sync(fs) {
   // 3) odehrané zápasy od posledního běhu (+ všechny od začátku sezóny pro zpětný přepočet)
   const done = new Map((st.meta.doneGames || []).map(([id, d]) => [id, d]));
   const from = st.meta.lastDate || addDays(today, -2);
-  const scanFrom = retroOwners.size && RETRO.fromDate < from ? RETRO.fromDate : from;
-  const games = [], retroGames = [], upcoming = [];
-  for (let d = scanFrom; d <= addDays(today, 3);) {
+  const winFrom = addDays(today, -7), winTo = addDays(today, 7); // okno pro záložku Zápasy
+  let scanFrom = retroOwners.size && RETRO.fromDate < from ? RETRO.fromDate : from;
+  if (winFrom < scanFrom) scanFrom = winFrom;
+  const games = [], retroGames = [], upcoming = [], finals = [];
+  for (let d = scanFrom; d <= winTo;) {
     const week = await nhl.scheduleWeek(d);
     if (!week.length) break;
     for (const day of week) for (const g of day.games) {
@@ -72,8 +74,9 @@ async function sync(fs) {
       if (day.date <= today && nhl.isFinal(g) && !games.some((x) => x.id === g.id) && !retroGames.some((x) => x.id === g.id)) {
         if (day.date >= from && !done.has(g.id)) games.push(g);
         else if (retroOwners.size && day.date >= RETRO.fromDate) retroGames.push(g);
+        if (day.date >= winFrom && !finals.some((x) => x.id === g.id)) finals.push(g);
       }
-      if (day.date >= today && day.date <= addDays(today, 3) && !nhl.isFinal(g) && !upcoming.some((x) => x.id === g.id)) upcoming.push(g);
+      if (day.date >= today && day.date <= winTo && !nhl.isFinal(g) && !upcoming.some((x) => x.id === g.id)) upcoming.push(g);
     }
     const next = addDays(week[week.length - 1].date, 1);
     if (next <= d) break;
@@ -103,16 +106,22 @@ async function sync(fs) {
   st.meta.lastDate = addDays(today, -2) < from ? from : addDays(today, -2);
   st.meta.doneGames = [...done].filter(([, d]) => d >= keepFrom);
   st.meta.lastRun = now;
-  const recentSnap = await fs.doc("public/recent").get();
-  const days = recentSnap.exists ? recentSnap.data().days || {} : {};
-  for (const k of Object.keys(days)) days[k] = days[k].filter((e) => !retroOwners.has(e.owner)); // přepočtení majitelé znovu
-  for (const e of st.log) (days[e.date] ||= []).push(e);
-  for (const k of Object.keys(days)) if (k < addDays(today, -7)) delete days[k];
+  // odehrané zápasy za 7 dní se skóre a nástupy našich hráčů
+  const resSnap = await fs.doc("public/results").get();
+  const prev = new Map();
+  for (const list of Object.values(resSnap.exists ? resSnap.data().days || {} : {})) for (const g of list) prev.set(g.id, g);
+  const days = {};
+  for (const g of finals.sort((a, b) => a.start.localeCompare(b.start))) {
+    const old = prev.get(g.id);
+    const pl = (old?.pl || []).filter((e) => !retroOwners.has(e.owner));
+    for (const e of st.log) if (e.gameId === g.id && !pl.some((x) => x.owner === e.owner && x.id === e.id)) pl.push(e);
+    (days[g.date] ||= []).push({ id: g.id, start: g.start, away: g.away, home: g.home, as: g.as, hs: g.hs, last: g.last, pl });
+  }
   const extra = {
     "meta/state": st.meta,
     "public/pool": { ...pool, updated: now },
     "public/upcoming": { games: upcoming.sort((a, b) => a.start.localeCompare(b.start)), updated: now },
-    "public/recent": { days, updated: now },
+    "public/results": { days, updated: now },
   };
   if (DRY) { console.log("DRY – neukládám.", [...st.dirty], st.feed); return; }
   console.log(`Zápisů: ${await save(fs, st, extra)}`);
