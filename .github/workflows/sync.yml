@@ -1,0 +1,39 @@
+yaml
+name: NHL data
+
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "sync = stáhnout data · seed = založit ligu (jen poprvé) · months = nahrát uzavřené měsíce"
+        type: choice
+        options: [sync, seed, months]
+        default: sync
+      dry:
+        description: "Jen vyzkoušet, nic neukládat"
+        type: boolean
+        default: false
+
+concurrency:
+  group: nhl-sync
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: sync
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+      - run: node run.mjs ${{ inputs.mode || 'sync' }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          DRY: ${{ inputs.dry && '1' || '0' }}
