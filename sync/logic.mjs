@@ -173,6 +173,23 @@ export function parseGame(box, landing) {
   return { lineup, so, stats: ga2 };
 }
 
+// Góly zápasu pro záložku Zápasy: [{p (třetina, 4+ = prodl.), t, team, s:{id,n}, a:[{id,n}], k: PP|SH|EN}]
+export function parseGoals(landing) {
+  const nm = (o) => o?.lastName?.default || o?.name?.default || "";
+  const out = [];
+  for (const per of landing?.summary?.scoring || []) {
+    if (per.periodDescriptor?.periodType === "SO") continue;
+    const p = per.periodDescriptor?.number || 0;
+    for (const g of per.goals || []) {
+      const st = (g.strength || "").toLowerCase();
+      const k = g.goalModifier === "empty-net" ? "EN" : st === "pp" ? "PP" : st === "sh" ? "SH" : null;
+      out.push({ p, t: g.timeInPeriod || "", team: g.teamAbbrev?.default || g.teamAbbrev || "",
+        s: { id: g.playerId, n: nm(g) }, a: (g.assists || []).map((x) => ({ id: x.playerId, n: nm(x) })), ...(k ? { k } : {}) });
+    }
+  }
+  return out;
+}
+
 function addMonth(st, date, owner, who, slot, role, g, a, so, pts) {
   const key = monthKey(date);
   const m = st.months[key] ||= { key, owners: {}, paid: false };

@@ -83,14 +83,17 @@ async function sync(fs) {
     d = next;
   }
   retroGames.sort((a, b) => a.start.localeCompare(b.start));
+  const goalsOf = new Map(); // id zápasu -> góly
   for (const g of retroGames) {
     const [box, land] = await Promise.all([nhl.boxscore(g.id), nhl.landing(g.id)]);
+    goalsOf.set(g.id, L.parseGoals(land));
     L.processGame(st, g, L.parseGame(box, land), now, { only: retroOwners, quiet: g.date < addDays(today, -2) });
   }
   if (retroGames.length) console.log(`Zpětně přepočteno zápasů: ${retroGames.length}`);
   games.sort((a, b) => a.start.localeCompare(b.start));
   for (const g of games) {
     const [box, land] = await Promise.all([nhl.boxscore(g.id), nhl.landing(g.id)]);
+    goalsOf.set(g.id, L.parseGoals(land));
     L.processGame(st, g, L.parseGame(box, land), now);
     done.set(g.id, g.date);
   }
@@ -115,7 +118,9 @@ async function sync(fs) {
     const old = prev.get(g.id);
     const pl = (old?.pl || []).filter((e) => !retroOwners.has(e.owner));
     for (const e of st.log) if (e.gameId === g.id && !pl.some((x) => x.owner === e.owner && x.id === e.id)) pl.push(e);
-    (days[g.date] ||= []).push({ id: g.id, start: g.start, away: g.away, home: g.home, as: g.as, hs: g.hs, last: g.last, pl });
+    let goals = goalsOf.get(g.id) || old?.goals;
+    if (!goals) { try { goals = L.parseGoals(await nhl.landing(g.id)); } catch { goals = []; } }
+    (days[g.date] ||= []).push({ id: g.id, start: g.start, away: g.away, home: g.home, as: g.as, hs: g.hs, last: g.last, pl, goals });
   }
   const extra = {
     "meta/state": st.meta,
