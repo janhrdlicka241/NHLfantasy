@@ -301,7 +301,7 @@ function installPending(st, owner, slot, game, now) {
     sub: { id: p.id, name: p.name, team: p.team }, openedAt: since, since, deadline: since, missed: 0,
     status: "", ret: "", active: true, bankMode: true, bank: 0, manual: true };
   st.injuries.push(inj);
-  slot.sub = { id: p.id, name: p.name, team: p.team, since }; slot.subMissed = 0;
+  slot.sub = { id: p.id, name: p.name, team: p.team, since, ...(p.pointsFrom ? { pointsFrom: p.pointsFrom } : {}) }; slot.subMissed = 0;
   slot.bankMode = true; slot.bankInit = true; slot.bank = 0;
   p.installed = true;
   mark(st, `injuries/${inj.id}`); mark(st, `rosters/${owner}`);
@@ -318,7 +318,7 @@ export function applyManualPre(st, manual, idx, retroOwners, now) {
     // dřívější ruční nasazení téhož náhradníka zrušit – přepočet ho nastaví znovu správně
     for (const inj of st.injuries) if (inj.active && inj.owner === s.owner && inj.slot === slot.key) { inj.active = false; inj.closedAt = now; mark(st, `injuries/${inj.id}`); }
     slot.sub = null; slot.bank = 0; slot.bankMode = false; slot.bankInit = false; slot.basePlayed = 0;
-    slot.pendingSub = { id: p.id, name: p.name, team: p.team, after: s.afterBaseGames };
+    slot.pendingSub = { id: p.id, name: p.name, team: p.team, after: s.afterBaseGames, ...(s.pointsFrom ? { pointsFrom: s.pointsFrom } : {}) };
     mark(st, `rosters/${s.owner}`);
     st.log.push({ info: `${s.owner}: ${p.name} nastoupí za ${slot.base.name} po jeho ${s.afterBaseGames}. zápase.` });
   }
@@ -332,6 +332,7 @@ export const BANK_FROM = "2026-11-01";
 function credit(st, game, parsed, owner, who, slot, role) {
   if (slot.games >= MAX_GAMES) return;
   slot.games++;
+  if (role === "sub" && slot.sub?.pointsFrom && game.start < slot.sub.pointsFrom) return; // body za tyto zápasy jsou z Excelu
   const { so, stats } = parsed, s = stats.get(who.id) || { g: 0, a: 0 };
   const shut = slot.pos === "G" && so.has(who.id) ? 1 : 0, g = slot.pos === "G" ? 0 : s.g;
   const pts = points(slot.pos, g, s.a, shut);

@@ -1,14 +1,14 @@
 {
- "_poznamka": "Ruční úpravy. points = pevné body do měsíce (říjnoví náhradníci z Excelu). subs: afterBaseGames = náhradník nastoupí po N zápasech základního hráče a aplikace mu spočítá body i banku zápasů sama; replaces 'auto' = za hráče na stejné pozici, který teď nehraje.",
+ "_poznamka": "Ruční úpravy pro říjen 2026. points = body náhradníků z Excelu. subs: Eichel hraje za Barkova od jeho 3. zápasu; banka zápasů se počítá ze skutečných zápasů, body do pointsFrom jsou z Excelu.",
  "points": [
   {
    "month": "2026-10",
-   "owner": "Svatý",
-   "name": "Sergačov",
-   "team": "UTA",
-   "pos": "D",
-   "g": 1,
-   "a": 1
+   "owner": "Myšák",
+   "name": "Eichel",
+   "team": "VGK",
+   "pos": "F",
+   "g": 5,
+   "a": 9
   },
   {
    "month": "2026-10",
@@ -18,6 +18,15 @@
    "pos": "F",
    "g": 2,
    "a": 6
+  },
+  {
+   "month": "2026-10",
+   "owner": "Svatý",
+   "name": "Sergačov",
+   "team": "UTA",
+   "pos": "D",
+   "g": 1,
+   "a": 1
   },
   {
    "month": "2026-10",
@@ -36,28 +45,8 @@
    "sub": "Eichel",
    "team": "VGK",
    "pos": "F",
-   "afterBaseGames": 2
-  },
-  {
-   "owner": "Šráma",
-   "replaces": "auto",
-   "sub": "Hughes",
-   "team": "NJD",
-   "pos": "F"
-  },
-  {
-   "owner": "Svatý",
-   "replaces": "auto",
-   "sub": "Sergačov",
-   "team": "UTA",
-   "pos": "D"
-  },
-  {
-   "owner": "Dvory",
-   "replaces": "auto",
-   "sub": "Aho",
-   "team": "CAR",
-   "pos": "F"
+   "afterBaseGames": 2,
+   "pointsFrom": "2026-10-26T13:00:00Z"
   }
  ]
 }
