@@ -1,15 +1,6 @@
 {
- "_poznamka": "Ruční úpravy. points = pevné body do měsíce (říjnoví náhradníci z Excelu). subs = náhradník nasazený od chvíle synchronizace; replaces 'auto' = za hráče na stejné pozici, který teď nehraje.",
+ "_poznamka": "Ruční úpravy. points = pevné body do měsíce (říjnoví náhradníci z Excelu). subs: afterBaseGames = náhradník nastoupí po N zápasech základního hráče a aplikace mu spočítá body i banku zápasů sama; replaces 'auto' = za hráče na stejné pozici, který teď nehraje.",
  "points": [
-  {
-   "month": "2026-10",
-   "owner": "Myšák",
-   "name": "Eichel",
-   "team": "VGK",
-   "pos": "F",
-   "g": 5,
-   "a": 9
-  },
   {
    "month": "2026-10",
    "owner": "Svatý",
@@ -44,7 +35,8 @@
    "replaces": "Barkov",
    "sub": "Eichel",
    "team": "VGK",
-   "pos": "F"
+   "pos": "F",
+   "afterBaseGames": 2
   },
   {
    "owner": "Šráma",
