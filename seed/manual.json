@@ -1,5 +1,5 @@
 {
- "_poznamka": "Ruční úpravy pro říjen 2026. points = body náhradníků z Excelu. subs: Eichel hraje za Barkova od jeho 3. zápasu; banka zápasů se počítá ze skutečných zápasů, body do pointsFrom jsou z Excelu.",
+ "_poznamka": "Ruční úpravy pro říjen 2026. points = body náhradníků z Excelu. subs: Eichel hraje za Barkova od jeho 3. zápasu; banka zápasů se počítá ze skutečných zápasů, body do pointsFrom jsou z Excelu. excelUntil = za zápasy před tímto časem se hráči u majitele body z aplikace nepočítají (jsou z Excelu).",
  "points": [
   {
    "month": "2026-10",
@@ -47,6 +47,14 @@
    "pos": "F",
    "afterBaseGames": 2,
    "pointsFrom": "2026-10-26T13:00:00Z"
+  }
+ ],
+ "excelUntil": [
+  {
+   "owner": "Myšák",
+   "name": "Eichel",
+   "team": "VGK",
+   "until": "2026-10-26T13:00:00Z"
   }
  ]
 }
