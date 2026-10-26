@@ -191,8 +191,15 @@ export function vTymy(S, U) {
   return `${me && !me.locked ? builder(S, U) : ""}
   <div class="teams" style="margin-top:12px">${owners.map((o) => {
     const r = S.rosters[o] || {}, mp = m?.owners?.[o]?.players || {};
-    if (!r.locked) return `<div class="panel team"><div class="th"><div><h3>${esc(o)}</h3></div>${ownChip(S, o)}</div>
-      <div class="empty">${S.rosterPicks[o]?.status === "pending" ? "Sestava odeslaná, čeká na potvrzení." : "Sestavu zatím nevybral."}</div></div>`;
+    // náhradníci a hráči s body v měsíci, kteří teď nejsou v sestavě (Excel, skončení náhradníci)
+    const inSlots = new Set((r.slots || []).flatMap((sl) => [String(sl.base.id), sl.sub ? String(sl.sub.id) : null]));
+    const others = Object.entries(mp).filter(([id]) => !inSlots.has(String(id))).map(([id, p]) => p).sort((a, b) => b.pts - a.pts);
+    const extra = others.length ? `<div class="xhead">Náhradníci v měsíci</div>${others.map((p) => `<div class="slotrow"><span class="pos ${p.pos}">${POSL[p.pos]}</span>
+      <div class="nb"><div>${esc(p.name)} <span class="nhl">${esc(p.team || "")}</span> <span class="tag sub">náhradník</span>${p.manual ? ' <span class="tname">z Excelu</span>' : ""}</div>
+      <div class="mstat">${p.pos === "G" ? `${p.so} nul · ${p.a} A` : `${p.g} G · ${p.a} A`}${p.gp ? ` · ${p.gp} záp.` : ""}</div></div>
+      <div class="num"><b>${p.pts}</b></div></div>`).join("")}` : "";
+    if (!r.locked) return `<div class="panel team"><div class="th"><div><h3>${esc(o)}</h3></div>${others.length ? `<div class="pts">${m?.owners?.[o]?.pts || 0}</div>` : ownChip(S, o)}</div>
+      <div class="empty">${S.rosterPicks[o]?.status === "pending" ? "Sestava odeslaná, čeká na potvrzení." : "Sestavu zatím nevybral."}</div>${extra}</div>`;
     const tot = m?.owners?.[o]?.pts || 0;
     return `<div class="panel team"><div class="th"><div><h3>${esc(o)}</h3></div><div class="pts">${tot}</div></div>
       ${r.slots.map((sl) => { const inj = openInj(S, o, sl.key), a = activeOf(S, o, sl);
@@ -206,6 +213,7 @@ export function vTymy(S, U) {
           ${inj && sl.bank > 0 ? `<div class="gamesc">${inj.baseBack ? `${esc(short(sl.base.name))} je zpět – náhradník dohraje ještě ${sl.bank}` : `v bance ${sl.bank} ${sl.bank === 1 ? "zápas" : sl.bank < 5 ? "zápasy" : "zápasů"} pro náhradníka`}</div>` : ""}
           <div class="gamesc">${slotLabel(sl.key)} · ${sl.games}/82 zápasů</div></div>
           <div class="num"><b>${bp}</b></div></div>`; }).join("")}
+      ${extra}
     </div>`; }).join("")}</div>
   <p class="note">Body jsou za vybraný měsíc (${monthLabel(mk)}). Počítadlo zápasů běží za celou sezónu, po 82 zápasech místo přestane bodovat.</p>`;
 }
