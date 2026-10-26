@@ -208,7 +208,10 @@ export function appearances(st, game, parsed) {
   return out;
 }
 
-function addMonth(st, date, owner, who, slot, role, g, a, so, pts) {
+// Body z Excelu: aplikace nepočítá body hráče u majitele za zápasy před zadaným časem (manual.excelUntil)
+const blocked = (st, owner, id, start) => (st.noPts || []).some((b) => b.owner === owner && b.id === id && start < b.until);
+function addMonth(st, date, owner, who, slot, role, g, a, so, pts, start) {
+  if (start && blocked(st, owner, who.id, start)) return false;
   const key = monthKey(date);
   const m = st.months[key] ||= { key, owners: {}, paid: false };
   if (m.locked) return false; // uzavřený měsíc (říjen z Excelu)
@@ -308,6 +311,14 @@ function installPending(st, owner, slot, game, now) {
 }
 export function applyManualPre(st, manual, idx, retroOwners, now) {
   const norm = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  st.noPts = [];
+  for (const e of manual.excelUntil || []) {
+    const roster = st.rosters[e.owner];
+    const ids = new Set();
+    for (const sl of roster?.slots || []) for (const p of [sl.base, sl.sub, sl.pendingSub]) if (p && norm(p.name).endsWith(norm(e.name))) ids.add(p.id);
+    for (const p of idx.values()) if (norm(p.name).endsWith(norm(e.name)) && (!e.team || p.team === e.team)) ids.add(p.id);
+    for (const id of ids) st.noPts.push({ owner: e.owner, id, until: e.until });
+  }
   for (const s of manual.subs || []) {
     if (s.afterBaseGames == null || !retroOwners.has(s.owner)) continue;
     const roster = st.rosters[s.owner];
@@ -336,7 +347,7 @@ function credit(st, game, parsed, owner, who, slot, role) {
   const { so, stats } = parsed, s = stats.get(who.id) || { g: 0, a: 0 };
   const shut = slot.pos === "G" && so.has(who.id) ? 1 : 0, g = slot.pos === "G" ? 0 : s.g;
   const pts = points(slot.pos, g, s.a, shut);
-  if (addMonth(st, game.date, owner, who, slot, role, g, s.a, shut, pts))
+  if (addMonth(st, game.date, owner, who, slot, role, g, s.a, shut, pts, game.start))
     st.log.push({ date: game.date, gameId: game.id, owner, id: who.id, name: who.name, team: who.team, pos: slot.pos, g, a: s.a, so: shut, pts });
 }
 function bankSlot(st, game, parsed, now, owner, slot, opts) {
@@ -443,7 +454,7 @@ export function processGame(st, game, parsed, now, opts = {}) {
         const shut = slot.pos === "G" && so.has(active.id) ? 1 : 0;
         const g = slot.pos === "G" ? 0 : s.g; // gól brankáře zatím nebodujeme
         const pts = points(slot.pos, g, s.a, shut);
-        const added = addMonth(st, game.date, owner, active, slot, active === slot.base ? "base" : "sub", g, s.a, shut, pts);
+        const added = addMonth(st, game.date, owner, active, slot, active === slot.base ? "base" : "sub", g, s.a, shut, pts, game.start);
         if (added) st.log.push({ date: game.date, gameId: game.id, owner, id: active.id, name: active.name, team: active.team, pos: slot.pos, g, a: s.a, so: shut, pts });
       }
     }
