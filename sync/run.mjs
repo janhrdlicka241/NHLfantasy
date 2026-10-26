@@ -10,8 +10,8 @@ let now = new Date().toISOString();
 export const setNow = (v) => { now = v; };
 const nyDate = (d = new Date()) => d.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
 // Říjen 2026: sestavy potvrzené do konce října (čas NHL) se počítají od začátku sezóny
-// version: změna vynutí nový přepočet (v2 = včetně zápasů 30. 9., kdy sezóna začala)
-const RETRO = { version: "v2", fromIso: "2026-09-01T00:00:00Z", fromDate: "2026-09-01", untilIso: "2026-11-01T04:00:00Z", month: "2026-10" };
+// version: změna vynutí nový přepočet (v2 = zápasy od 30. 9., v3 = Eichel za Barkova po jeho 2. zápase)
+const RETRO = { version: "v3", fromIso: "2026-09-01T00:00:00Z", fromDate: "2026-09-01", untilIso: "2026-11-01T04:00:00Z", month: "2026-10" };
 const addDays = (s, n) => { const d = new Date(s + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 
 async function seed(fs) {
@@ -60,6 +60,7 @@ async function sync(fs) {
   const retroOwners = L.prepareRetro(st, RETRO);
   let manual = {};
   try { manual = JSON.parse(readFileSync(new URL("../seed/manual.json", import.meta.url))); } catch { console.log("seed/manual.json nenalezen – bez ručních úprav."); }
+  L.applyManualPre(st, manual, idx, retroOwners, now);
   if (retroOwners.size) console.log(`Zpětný přepočet října pro: ${[...retroOwners].join(", ")}`);
 
   // 3) odehrané zápasy od posledního běhu (+ všechny od začátku sezóny pro zpětný přepočet)
@@ -91,7 +92,8 @@ async function sync(fs) {
   for (const g of retroGames) {
     const [box, land] = await Promise.all([nhl.boxscore(g.id), nhl.landing(g.id)]);
     cache.set(g.id, [box, land]);
-    L.processGame(st, g, L.parseGame(box, land), now, { only: retroOwners, quiet: g.date < addDays(today, -2) });
+    const laterR = (byDate[g.date] || []).filter((x) => x.start > g.start).flatMap((x) => [x.away, x.home]);
+    L.processGame(st, g, L.parseGame(box, land), now, { only: retroOwners, quiet: g.date < addDays(today, -2), later: laterR });
   }
   if (retroGames.length) console.log(`Zpětně přepočteno zápasů: ${retroGames.length}`);
   games.sort((a, b) => a.start.localeCompare(b.start));
