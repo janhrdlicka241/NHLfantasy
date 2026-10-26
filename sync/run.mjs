@@ -10,7 +10,8 @@ let now = new Date().toISOString();
 export const setNow = (v) => { now = v; };
 const nyDate = (d = new Date()) => d.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
 // Říjen 2026: sestavy potvrzené do konce října (čas NHL) se počítají od začátku sezóny
-const RETRO = { fromIso: "2026-09-01T00:00:00Z", fromDate: "2026-10-01", untilIso: "2026-11-01T04:00:00Z", month: "2026-10" };
+// version: změna vynutí nový přepočet (v2 = včetně zápasů 30. 9., kdy sezóna začala)
+const RETRO = { version: "v2", fromIso: "2026-09-01T00:00:00Z", fromDate: "2026-09-01", untilIso: "2026-11-01T04:00:00Z", month: "2026-10" };
 const addDays = (s, n) => { const d = new Date(s + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 
 async function seed(fs) {
@@ -57,6 +58,8 @@ async function sync(fs) {
   L.applyPicks(st, idx, now);
   L.applyDeadlines(st, idx, now);
   const retroOwners = L.prepareRetro(st, RETRO);
+  let manual = {};
+  try { manual = JSON.parse(readFileSync(new URL("../seed/manual.json", import.meta.url))); } catch { console.log("seed/manual.json nenalezen – bez ručních úprav."); }
   if (retroOwners.size) console.log(`Zpětný přepočet října pro: ${[...retroOwners].join(", ")}`);
 
   // 3) odehrané zápasy od posledního běhu (+ všechny od začátku sezóny pro zpětný přepočet)
@@ -65,12 +68,13 @@ async function sync(fs) {
   const winFrom = addDays(today, -7), winTo = addDays(today, 7); // okno pro záložku Zápasy
   let scanFrom = retroOwners.size && RETRO.fromDate < from ? RETRO.fromDate : from;
   if (winFrom < scanFrom) scanFrom = winFrom;
-  const games = [], retroGames = [], upcoming = [], finals = [];
+  const games = [], retroGames = [], upcoming = [], finals = [], byDate = {};
   for (let d = scanFrom; d <= winTo;) {
     const week = await nhl.scheduleWeek(d);
     if (!week.length) break;
     for (const day of week) for (const g of day.games) {
       if (g.type !== 2) continue; // jen základní část
+      if (!(byDate[day.date] ||= []).some((x) => x.id === g.id)) byDate[day.date].push(g);
       if (day.date <= today && nhl.isFinal(g) && !games.some((x) => x.id === g.id) && !retroGames.some((x) => x.id === g.id)) {
         if (day.date >= from && !done.has(g.id)) games.push(g);
         else if (retroOwners.size && day.date >= RETRO.fromDate) retroGames.push(g);
@@ -94,10 +98,16 @@ async function sync(fs) {
   for (const g of games) {
     const [box, land] = await Promise.all([nhl.boxscore(g.id), nhl.landing(g.id)]);
     cache.set(g.id, [box, land]);
-    L.processGame(st, g, L.parseGame(box, land), now);
+    const later = (byDate[g.date] || []).filter((x) => x.start > g.start).flatMap((x) => [x.away, x.home]);
+    L.processGame(st, g, L.parseGame(box, land), now, { later });
     done.set(g.id, g.date);
   }
   console.log(`Zpracováno zápasů: ${games.length}`);
+
+  L.applyManual(st, manual, idx, now);
+  for (const w of st.log.filter((e) => e.warn)) console.log("UPOZORNĚNÍ:", w.warn);
+  for (const w of st.log.filter((e) => e.info)) console.log("INFO:", w.info);
+  st.log = st.log.filter((e) => !e.warn && !e.info);
 
   // 4) ESPN – důvod a odhad návratu (nepovinné)
   if (st.injuries.some((i) => i.active)) {
