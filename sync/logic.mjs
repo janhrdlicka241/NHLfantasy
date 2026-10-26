@@ -227,7 +227,7 @@ export function prepareRetro(st, retro) {
   if (st.months[retro.month]?.locked) { st.months[retro.month] = { key: retro.month, owners: {}, paid: false }; mark(st, `months/${retro.month}`); }
   for (const [owner, roster] of Object.entries(st.rosters)) {
     if (!roster.locked || roster.retroDone === retro.version || !(roster.lockedAt < retro.untilIso)) continue;
-    for (const sl of roster.slots) { sl.activeFrom = retro.fromIso; sl.games = 0; sl.baseMissed = 0; sl.subMissed = 0; }
+    for (const sl of roster.slots) { sl.activeFrom = retro.fromIso; sl.games = 0; sl.baseMissed = 0; sl.subMissed = 0; sl.basePlayed = 0; }
     roster.retroDone = retro.version;
     const m = st.months[retro.month];
     if (m?.owners?.[owner]) { delete m.owners[owner]; mark(st, `months/${retro.month}`); }
@@ -253,7 +253,8 @@ export function applyManual(st, manual, idx, now) {
     o.pts += pts; mark(st, `months/${m.month}`);
   }
   for (const s of manual.subs || []) {
-    const key = `${s.owner}|${s.replaces}|${s.sub}`;
+    if (s.afterBaseGames != null) continue; // řeší applyManualPre při přepočtu
+    const key = `${s.owner}|${s.replaces}|${s.sub}|${s.subGames ?? ""}`;
     if ((st.meta.manualDone || []).includes(key)) continue;
     const roster = st.rosters[s.owner];
     if (!roster?.locked) { st.log.push({ warn: `Ruční náhradník ${s.sub}: ${s.owner} ještě nemá potvrzenou sestavu.` }); continue; }
@@ -269,7 +270,8 @@ export function applyManual(st, manual, idx, now) {
     const cands = [...idx.values()].filter((p) => p.pos === slot.pos && norm(p.name).endsWith(norm(s.sub)));
     const p = cands.find((x) => !s.team || x.team === s.team) || cands[0];
     if (!p) { st.log.push({ warn: `Ruční náhradník ${s.sub} nenalezen.` }); continue; }
-    if (ownedIds(st).has(p.id)) { st.log.push({ warn: `Ruční náhradník ${p.name} už má někdo jiný.` }); (st.meta.manualDone ||= []).push(key); continue; }
+    const ownOther = roster.slots.some((x) => x !== slot && (x.base.id === p.id || x.sub?.id === p.id));
+    if (ownedIds(st, s.owner).has(p.id) || ownOther) { st.log.push({ warn: `Ruční náhradník ${p.name} už má někdo jiný.` }); (st.meta.manualDone ||= []).push(key); continue; }
     let inj = openInjury(st, s.owner, slot.key);
     if (!inj) {
       inj = { id: genId(), owner: s.owner, slot: slot.key, pos: slot.pos, player: { ...slot.base }, needPick: false, sub: null,
@@ -278,10 +280,47 @@ export function applyManual(st, manual, idx, now) {
     }
     slot.sub = { id: p.id, name: p.name, team: p.team, since: now }; slot.subMissed = 0;
     inj.needPick = false; inj.sub = { id: p.id, name: p.name, team: p.team };
+    if (s.subGames != null) {
+      // banka hned: kolik zápasů základní hráč vynechal mínus kolik jich náhradník už odehrál
+      slot.bank = Math.max(0, (s.baseMissed ?? slot.baseMissed ?? 0) - s.subGames);
+      slot.bankInit = true; slot.bankMode = true; inj.bankMode = true; inj.bank = slot.bank; inj.baseBack = false;
+      st.log.push({ info: `${s.owner}: ${slot.base.name} vynechal ${s.baseMissed ?? slot.baseMissed} zápasů, ${p.name} jich odehrál ${s.subGames} → v bance ${slot.bank}.` });
+    }
     mark(st, `rosters/${s.owner}`); mark(st, `injuries/${inj.id}`);
-    slot.bank = Math.max(slot.bank || 0, slot.baseMissed || 0);
     feed(st, now, "ok", `${s.owner}: ${p.name} (${p.team}) hraje za ${slot.base.name}, který vynechal posledních ${slot.baseMissed} zápasů (zadáno ručně).`, s.owner);
     (st.meta.manualDone ||= []).push(key);
+  }
+}
+
+// Ruční náhradník „po N zápasech základního hráče“ (např. Barkov odehrál 2, pak Eichel):
+// nastaví se před přepočtem a nasadí se v okamžiku prvního zápasu po N odehraných.
+function installPending(st, owner, slot, game, now) {
+  const p = slot.pendingSub;
+  const since = new Date(Date.parse(game.start) - 1000).toISOString();
+  const inj = { id: genId(), owner, slot: slot.key, pos: slot.pos, player: { ...slot.base }, needPick: false,
+    sub: { id: p.id, name: p.name, team: p.team }, openedAt: since, since, deadline: since, missed: 0,
+    status: "", ret: "", active: true, bankMode: true, bank: 0, manual: true };
+  st.injuries.push(inj);
+  slot.sub = { id: p.id, name: p.name, team: p.team, since }; slot.subMissed = 0;
+  slot.bankMode = true; slot.bankInit = true; slot.bank = 0;
+  p.installed = true;
+  mark(st, `injuries/${inj.id}`); mark(st, `rosters/${owner}`);
+}
+export function applyManualPre(st, manual, idx, retroOwners, now) {
+  const norm = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  for (const s of manual.subs || []) {
+    if (s.afterBaseGames == null || !retroOwners.has(s.owner)) continue;
+    const roster = st.rosters[s.owner];
+    const slot = roster?.slots?.find((x) => norm(x.base.name).endsWith(norm(s.replaces)));
+    if (!slot) { st.log.push({ warn: `Ruční náhradník: ${s.owner} nemá v sestavě ${s.replaces}.` }); continue; }
+    const p = [...idx.values()].find((x) => x.pos === slot.pos && norm(x.name).endsWith(norm(s.sub)) && (!s.team || x.team === s.team));
+    if (!p) { st.log.push({ warn: `Ruční náhradník ${s.sub} nenalezen.` }); continue; }
+    // dřívější ruční nasazení téhož náhradníka zrušit – přepočet ho nastaví znovu správně
+    for (const inj of st.injuries) if (inj.active && inj.owner === s.owner && inj.slot === slot.key) { inj.active = false; inj.closedAt = now; mark(st, `injuries/${inj.id}`); }
+    slot.sub = null; slot.bank = 0; slot.bankMode = false; slot.bankInit = false; slot.basePlayed = 0;
+    slot.pendingSub = { id: p.id, name: p.name, team: p.team, after: s.afterBaseGames };
+    mark(st, `rosters/${s.owner}`);
+    st.log.push({ info: `${s.owner}: ${p.name} nastoupí za ${slot.base.name} po jeho ${s.afterBaseGames}. zápase.` });
   }
 }
 
@@ -301,6 +340,7 @@ function credit(st, game, parsed, owner, who, slot, role) {
 }
 function bankSlot(st, game, parsed, now, owner, slot, opts) {
   const teams = [game.away, game.home], { lineup } = parsed;
+  if (!slot.bankInit) { slot.bank = 0; slot.bankInit = true; } // banka začíná 1. 11. na nule – říjen už je započítaný
   slot.bank ||= 0;
   let inj = openInjury(st, owner, slot.key);
   if (inj?.since && game.start <= inj.since) inj = null;
@@ -308,7 +348,7 @@ function bankSlot(st, game, parsed, now, owner, slot, opts) {
   if (teams.includes(slot.base.team)) {
     mark(st, `rosters/${owner}`);
     if (lineup.has(slot.base.id)) {
-      slot.baseMissed = 0;
+      slot.baseMissed = 0; slot.basePlayed = (slot.basePlayed || 0) + 1;
       if (inj && !inj.baseBack) {
         inj.baseBack = true; mark(st, `injuries/${inj.id}`);
         if (slot.bank > 0 && slot.sub) feed(st, now, "back", `${slot.base.name} (${owner}) se vrátil – ${slot.sub.name} dohraje ještě ${slot.bank} ${slot.bank === 1 ? "zápas" : slot.bank < 5 ? "zápasy" : "zápasů"}.`, owner);
@@ -352,7 +392,10 @@ export function processGame(st, game, parsed, now, opts = {}) {
     if (opts.only && !opts.only.has(owner)) continue;
     for (const slot of roster.slots) {
       if (game.start <= slot.activeFrom) continue; // zápas před potvrzením sestavy
-      if (game.date >= BANK_FROM) { bankSlot(st, game, parsed, now, owner, slot, opts); continue; }
+      if (slot.pendingSub && !slot.pendingSub.installed && (slot.basePlayed || 0) >= slot.pendingSub.after && [game.away, game.home].includes(slot.base.team)) {
+        installPending(st, owner, slot, game, now);
+      }
+      if (game.date >= BANK_FROM || slot.bankMode) { bankSlot(st, game, parsed, now, owner, slot, opts); continue; }
       let touched = false;
       let inj = openInjury(st, owner, slot.key);
       if (inj?.since && game.start <= inj.since) inj = null; // ručně zadané zranění platí až od zadání
@@ -360,7 +403,7 @@ export function processGame(st, game, parsed, now, opts = {}) {
       if (teams.includes(slot.base.team)) {
         touched = true;
         if (lineup.has(slot.base.id)) {
-          slot.baseMissed = 0;
+          slot.baseMissed = 0; slot.basePlayed = (slot.basePlayed || 0) + 1;
           if (inj) {
             inj.active = false; inj.closedAt = now; mark(st, `injuries/${inj.id}`);
             feed(st, now, "back", `${slot.base.name} (${owner}) se vrátil do sestavy${slot.sub ? ` – ${slot.sub.name} končí a je znovu volný` : ""}.`, owner);
