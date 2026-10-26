@@ -211,11 +211,11 @@ export function vTymy(S, U) {
           ${line(sl.base.id)}
           ${sl.sub ? `<div>${esc(sl.sub.name)} <span class="nhl">${sl.sub.team}</span> <span class="tag sub">náhradník</span> <span class="num">${spt} b.</span></div>${line(sl.sub.id)}` : inj ? `<div class="err">čeká na náhradníka</div>` : ""}
           ${inj && sl.bank > 0 ? `<div class="gamesc">${inj.baseBack ? `${esc(short(sl.base.name))} je zpět – náhradník dohraje ještě ${sl.bank}` : `v bance ${sl.bank} ${sl.bank === 1 ? "zápas" : sl.bank < 5 ? "zápasy" : "zápasů"} pro náhradníka`}</div>` : ""}
-          <div class="gamesc">${slotLabel(sl.key)} · ${sl.games}/82 zápasů</div></div>
+          <div class="gamesc">${slotLabel(sl.key)} · ${sl.games}/84 zápasů</div></div>
           <div class="num"><b>${bp}</b></div></div>`; }).join("")}
       ${extra}
     </div>`; }).join("")}</div>
-  <p class="note">Body jsou za vybraný měsíc (${monthLabel(mk)}). Počítadlo zápasů běží za celou sezónu, po 82 zápasech místo přestane bodovat.</p>`;
+  <p class="note">Body jsou za vybraný měsíc (${monthLabel(mk)}). Počítadlo zápasů běží za celou sezónu, po 84 zápasech místo přestane bodovat.</p>`;
 }
 
 // --- Zranění ---
@@ -249,7 +249,7 @@ export function vZraneni(S, U) {
   <div class="panel rules"><h4>Jak to funguje</h4><ul>
     <li>Když hráč vynechá zápas svého týmu, majitel hned dostane výzvu vybrat náhradníka. Brankář se počítá jen při zranění (když není na soupisce zápasu), ne když chytá dvojka.</li>
     <li>Každý vynechaný zápas jde do banky. Náhradník banku odehrává – vynechal-li hráč 4 zápasy, náhradník odehraje 4.</li>
-    <li>Když se hráč vrátí dřív, než náhradník banku odehraje, náhradník ji dohraje a pak automaticky končí. Každé místo tak má na konci 82 zápasů.</li>
+    <li>Když se hráč vrátí dřív, než náhradník banku odehraje, náhradník ji dohraje a pak automaticky končí. Každé místo tak má na konci 84 zápasů.</li>
     <li>Náhradníka vybírá jen majitel, ze stejné pozice a jen volného hráče. Na výběr je 48 h, pak se nasadí nejlepší volný hráč. Kdo vybere dřív, má přednost.</li>
     <li>Když se zraní i náhradník (vynechá 2 zápasy), vybírá se další.</li>
   </ul></div>`;
@@ -318,6 +318,6 @@ export function vVyuct(S, U) {
     <li>Útočník: gól 2 b., asistence 1 b. Obránce: gól 3 b., asistence 1 b. Brankář: čisté konto 5 b., asistence 1 b.</li>
     <li>Každý platí každému, kdo je nad ním, ${kc} Kč za každý bod rozdílu. Na konci měsíce se body nulují.</li>
     <li>Měsíc se uzavírá poslední den měsíce podle času NHL. Zápas hraný v Americe 31. večer (u nás už 1. ráno) patří ještě do starého měsíce.</li>
-    <li>Každé místo v sestavě boduje maximálně 82 zápasů. Jen základní část.</li>
+    <li>Každé místo v sestavě boduje maximálně 84 zápasů. Jen základní část.</li>
   </ul></div>`;
 }

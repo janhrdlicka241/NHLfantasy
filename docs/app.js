@@ -43,8 +43,13 @@ function draw() {
   document.getElementById("mSub").textContent = S.months[U.month]?.locked ? "uzavřeno" : U.month === cur ? "průběžně" : "";
   document.getElementById("prevM").disabled = i <= 0; document.getElementById("nextM").disabled = i < 0 || i >= keys.length - 1;
   document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === U.tab));
-  const act = S.injuries.filter((x) => x.active), bd = document.getElementById("injBadge");
-  bd.textContent = act.length || ""; bd.classList.toggle("hot", act.some((x) => x.owner === U.me && x.needPick));
+  // odznak: nepřečtená oznámení od poslední návštěvy záložky Zranění; červeně, když musím vybrat náhradníka
+  const bd = document.getElementById("injBadge");
+  if (U.tab === "zraneni") { U.seen = new Date().toISOString(); keep("fnhl-seen-" + U.me, U.seen); }
+  else U.seen = store("fnhl-seen-" + U.me) || "";
+  const mine = S.injuries.filter((x) => x.active && x.owner === U.me && x.needPick).length;
+  const unread = S.feed.filter((f) => f.ts > U.seen).length;
+  bd.textContent = mine || unread || ""; bd.classList.toggle("hot", mine > 0);
   // zachovat fokus ve vyhledávání
   const f = document.activeElement, fid = f?.id, pos = f?.selectionStart;
   const view = { tabulka: V.vTabulka, den: V.vDen, tymy: V.vTymy, zraneni: V.vZraneni, nhl: V.vNhl, vyuctovani: V.vVyuct }[U.tab];
