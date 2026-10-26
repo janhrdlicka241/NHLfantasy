@@ -183,3 +183,4 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .gteam{font-family:var(--mono);font-size:12px;font-weight:700;flex:none;width:32px}
 .gwho{flex:1;min-width:0}
 .ours{background:color-mix(in srgb,var(--oc) 22%,transparent);box-shadow:inset 0 -2px 0 var(--oc);padding:0 3px;border-radius:3px;font-weight:700}
+.bankline{font-size:14px;padding:6px 10px;background:var(--ice);border-radius:4px}

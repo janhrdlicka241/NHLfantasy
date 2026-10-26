@@ -203,6 +203,7 @@ export function vTymy(S, U) {
           <div class="nb"><div>${esc(sl.base.name)} <span class="nhl">${sl.base.team}</span> ${inj ? '<span class="tag inj">ZRANĚN</span>' : ""}</div>
           ${line(sl.base.id)}
           ${sl.sub ? `<div>${esc(sl.sub.name)} <span class="nhl">${sl.sub.team}</span> <span class="tag sub">náhradník</span> <span class="num">${spt} b.</span></div>${line(sl.sub.id)}` : inj ? `<div class="err">čeká na náhradníka</div>` : ""}
+          ${inj && sl.bank > 0 ? `<div class="gamesc">${inj.baseBack ? `${esc(short(sl.base.name))} je zpět – náhradník dohraje ještě ${sl.bank}` : `v bance ${sl.bank} ${sl.bank === 1 ? "zápas" : sl.bank < 5 ? "zápasy" : "zápasů"} pro náhradníka`}</div>` : ""}
           <div class="gamesc">${slotLabel(sl.key)} · ${sl.games}/82 zápasů</div></div>
           <div class="num"><b>${bp}</b></div></div>`; }).join("")}
     </div>`; }).join("")}</div>
@@ -225,7 +226,8 @@ function injCard(S, U, i) {
   } else body = `<div class="tname">Čeká, až ${esc(i.owner)} vybere náhradníka – zbývá ${hrs} h.</div>`;
   return `<div class="panel notice ${!i.sub && mine && !myPick ? "urgent" : ""}"><div class="ico ${i.sub ? "info" : "warn"}">${i.sub ? "⇄" : "!"}</div><div class="nb">
     <div class="ihead"><span class="pos ${i.pos}">${POSL[i.pos]}</span> <b>${esc(i.player.name)}</b> <span class="nhl">${i.player.team}</span> ${ownChip(S, i.owner)} <span class="tag inj">ZRANĚN</span></div>
-    <div class="tname">${[i.status, i.ret, `vynechal ${i.missed} zápasů`, `od ${fDT(i.openedAt)}`].filter(Boolean).map(esc).join(" · ")}</div>
+    <div class="tname">${[i.status, i.ret, `vynechal ${i.missed} ${i.missed === 1 ? "zápas" : i.missed < 5 ? "zápasy" : "zápasů"}`, `od ${fDT(i.openedAt)}`].filter(Boolean).map(esc).join(" · ")}</div>
+    ${i.bankMode && i.bank > 0 ? `<div class="bankline">${i.baseBack ? `${esc(short(i.player.name))} se vrátil – náhradník dohraje ještě <b>${i.bank}</b> ${i.bank === 1 ? "zápas" : i.bank < 5 ? "zápasy" : "zápasů"}` : `V bance <b>${i.bank}</b> ${i.bank === 1 ? "zápas" : i.bank < 5 ? "zápasy" : "zápasů"} – náhradník je odehraje`}</div>` : ""}
     ${body}
     <div class="acts"><a class="btn sm" href="https://www.tsn.ca/nhl/injuries" target="_blank" rel="noopener">Ověřit na TSN</a></div>
   </div></div>`;
@@ -237,11 +239,11 @@ export function vZraneni(S, U) {
   <h3 class="mh">Oznámení</h3>
   <div class="panel feed">${S.feed.length ? S.feed.map((f) => `<div class="frow"><span class="ico ${f.kind === "warn" ? "warn" : f.kind === "back" ? "info" : "ok"} s">${f.kind === "warn" ? "!" : f.kind === "back" ? "↩" : "✓"}</span><div class="nb">${esc(f.txt)}</div><span class="tname">${ago(f.ts)}</span></div>`).join("") : `<div class="empty">Zatím žádná oznámení.</div>`}</div>
   <div class="panel rules"><h4>Jak to funguje</h4><ul>
-    <li>Zraněný je hráč, který vynechá 2 zápasy svého týmu (brankář 3) – aplikace to pozná ze sestav NHL. Důvod a odhad návratu doplní z ESPN.</li>
-    <li>Náhradníka vybírá jen majitel, ze stejné pozice a jen volného hráče. Volný je i hráč, který byl dřív náhradníkem někoho jiného.</li>
-    <li>Na výběr je 48 h, pak se nasadí nejlepší volný hráč. Když chce stejného hráče víc lidí, dostane ho ten, kdo vybral dřív.</li>
-    <li>Náhradník boduje od dalšího zápasu. Když se zraní i on, vybírá se další.</li>
-    <li>Jakmile zraněný hráč znovu nastoupí, automaticky se vrací a náhradník je znovu volný. Body náhradníka týmu zůstávají.</li>
+    <li>Když hráč vynechá zápas svého týmu, majitel hned dostane výzvu vybrat náhradníka. Brankář se počítá jen při zranění (když není na soupisce zápasu), ne když chytá dvojka.</li>
+    <li>Každý vynechaný zápas jde do banky. Náhradník banku odehrává – vynechal-li hráč 4 zápasy, náhradník odehraje 4.</li>
+    <li>Když se hráč vrátí dřív, než náhradník banku odehraje, náhradník ji dohraje a pak automaticky končí. Každé místo tak má na konci 82 zápasů.</li>
+    <li>Náhradníka vybírá jen majitel, ze stejné pozice a jen volného hráče. Na výběr je 48 h, pak se nasadí nejlepší volný hráč. Kdo vybere dřív, má přednost.</li>
+    <li>Když se zraní i náhradník (vynechá 2 zápasy), vybírá se další.</li>
   </ul></div>`;
 }
 
