@@ -1,0 +1,71 @@
+{
+ "_poznamka": "Ruční úpravy. points = pevné body do měsíce (říjnoví náhradníci z Excelu). subs = náhradník nasazený od chvíle synchronizace; replaces 'auto' = za hráče na stejné pozici, který teď nehraje.",
+ "points": [
+  {
+   "month": "2026-10",
+   "owner": "Myšák",
+   "name": "Eichel",
+   "team": "VGK",
+   "pos": "F",
+   "g": 5,
+   "a": 9
+  },
+  {
+   "month": "2026-10",
+   "owner": "Svatý",
+   "name": "Sergačov",
+   "team": "UTA",
+   "pos": "D",
+   "g": 1,
+   "a": 1
+  },
+  {
+   "month": "2026-10",
+   "owner": "Šráma",
+   "name": "Hughes",
+   "team": "NJD",
+   "pos": "F",
+   "g": 2,
+   "a": 6
+  },
+  {
+   "month": "2026-10",
+   "owner": "Dvory",
+   "name": "Aho",
+   "team": "CAR",
+   "pos": "F",
+   "g": 0,
+   "a": 1
+  }
+ ],
+ "subs": [
+  {
+   "owner": "Myšák",
+   "replaces": "Barkov",
+   "sub": "Eichel",
+   "team": "VGK",
+   "pos": "F"
+  },
+  {
+   "owner": "Šráma",
+   "replaces": "auto",
+   "sub": "Hughes",
+   "team": "NJD",
+   "pos": "F"
+  },
+  {
+   "owner": "Svatý",
+   "replaces": "auto",
+   "sub": "Sergačov",
+   "team": "UTA",
+   "pos": "D"
+  },
+  {
+   "owner": "Dvory",
+   "replaces": "auto",
+   "sub": "Aho",
+   "team": "CAR",
+   "pos": "F"
+  }
+ ]
+}
