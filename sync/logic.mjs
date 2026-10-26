@@ -3,7 +3,7 @@ export const SLOTS = [
   { key: "F1", pos: "F" }, { key: "F2", pos: "F" }, { key: "F3", pos: "F" },
   { key: "D1", pos: "D" }, { key: "G1", pos: "G" },
 ];
-export const MAX_GAMES = 82;
+export const MAX_GAMES = 84; // sezóna 2026/27 má 84 zápasů
 export const DEADLINE_H = 48;
 export const MISS_LIMIT = { F: 2, D: 2, G: 3 }; // brankáři sedí častěji, proto 3
 
