@@ -22,7 +22,7 @@ async function seed(fs) {
   b.set(fs.doc("config/league"), s.league);
   for (const o of s.league.owners) b.set(fs.doc(`rosters/${o}`), { owner: o, locked: false, slots: [] });
   for (const [k, m] of Object.entries(s.months)) b.set(fs.doc(`months/${k}`), m);
-  b.set(fs.doc("meta/state"), { lastDate: addDays(nyDate(), -2), doneGames: [] });
+  b.set(fs.doc("meta/state"), { lastDate: addDays(nyDate(), -2), doneGames: {} });
   b.set(fs.doc("feed/start"), { ts: now, kind: "ok", txt: "Liga je založená. Každý si v záložce Týmy sestaví svůj tým.", owner: null });
   if (!DRY) await b.commit();
   console.log("Seed hotový.");
@@ -64,7 +64,9 @@ async function sync(fs) {
   if (retroOwners.size) console.log(`Zpětný přepočet října pro: ${[...retroOwners].join(", ")}`);
 
   // 3) odehrané zápasy od posledního běhu (+ všechny od začátku sezóny pro zpětný přepočet)
-  const done = new Map((st.meta.doneGames || []).map(([id, d]) => [id, d]));
+  // doneGames: { "idZápasu": "datum" } (Firestore neumí pole v poli)
+  const dg = st.meta.doneGames || {};
+  const done = new Map(Array.isArray(dg) ? dg.map(([id, d]) => [id, d]) : Object.entries(dg).map(([id, d]) => [Number(id), d]));
   const from = st.meta.lastDate || addDays(today, -2);
   const winFrom = addDays(today, -7), winTo = addDays(today, 7); // okno pro záložku Zápasy
   let scanFrom = retroOwners.size && RETRO.fromDate < from ? RETRO.fromDate : from;
@@ -119,7 +121,7 @@ async function sync(fs) {
   // 5) uložení
   const keepFrom = addDays(today, -10);
   st.meta.lastDate = addDays(today, -2) < from ? from : addDays(today, -2);
-  st.meta.doneGames = [...done].filter(([, d]) => d >= keepFrom);
+  st.meta.doneGames = Object.fromEntries([...done].filter(([, d]) => d >= keepFrom).map(([id, d]) => [String(id), d]));
   st.meta.lastRun = now;
   // odehrané zápasy za 7 dní se skóre a nástupy našich hráčů
   const resSnap = await fs.doc("public/results").get();
@@ -143,7 +145,7 @@ async function sync(fs) {
   console.log(`Zápasy za 7 dní: ${all.length}, gólů: ${all.reduce((t, g) => t + (g.goals?.length || 0), 0)}, nástupů našich hráčů: ${all.reduce((t, g) => t + (g.pl?.length || 0), 0)}`);
   const extra = {
     "meta/state": st.meta,
-    "public/pool": { ...pool, updated: now },
+    "public/pool": { ...L.encodePool(pool), updated: now },
     "public/upcoming": { games: upcoming.sort((a, b) => a.start.localeCompare(b.start)), updated: now },
     "public/results": { days, updated: now },
   };

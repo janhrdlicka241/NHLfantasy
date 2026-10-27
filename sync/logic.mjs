@@ -57,6 +57,13 @@ export function mergeRosters(pool, roster) {
   }
   return added;
 }
+// Pro uložení do Firestore: řádky jako objekty (pole v poli Firestore neumí)
+export function encodePool(pool) {
+  return {
+    skaters: pool.skaters.map(([i, n, t, p, gp, g, a]) => ({ i, n, t, p, gp, g, a })),
+    goalies: pool.goalies.map(([i, n, t, gp, w, l, ot, gaa, sv, so]) => ({ i, n, t, gp, w, l, ot, gaa, sv, so })),
+  };
+}
 export function poolIndex(pool) {
   const m = new Map();
   for (const r of pool.skaters) m.set(r[0], { id: r[0], name: r[1], team: r[2], pos: fantasyPos(r[3]), score: r[5] + r[6] });
