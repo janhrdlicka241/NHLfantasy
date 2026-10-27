@@ -42,8 +42,12 @@ function activeOf(S, owner, sl) {
   const inj = openInj(S, owner, sl.key);
   return inj ? (sl.sub || null) : sl.base;
 }
+// řádky poolu: nově objekty {i,n,t,…} (Firestore neumí pole v poli), dřív pole
+const skRow = (r) => (Array.isArray(r) ? r : [r.i, r.n, r.t, r.p, r.gp, r.g, r.a]);
+const goRow = (r) => (Array.isArray(r) ? r : [r.i, r.n, r.t, r.gp, r.w, r.l, r.ot, r.gaa, r.sv, r.so]);
 export function poolList(S, pos) {
-  const P = S.pool; if (!P) return [];
+  const P0 = S.pool; if (!P0) return [];
+  const P = { skaters: (P0.skaters || []).map(skRow), goalies: (P0.goalies || []).map(goRow) };
   if (pos === "G") return P.goalies.map((r) => ({ id: r[0], name: r[1], team: r[2], pos: "G", gp: r[3], w: r[4], l: r[5], ot: r[6], gaa: r[7], sv: r[8], so: r[9], score: r[9] * 100 + r[4] }));
   return P.skaters.map((r) => ({ id: r[0], name: r[1], team: r[2], code: r[3], pos: r[3] === "D" ? "D" : "F", gp: r[4], g: r[5], a: r[6], pts: r[5] + r[6], score: r[5] + r[6] }))
     .filter((p) => !pos || p.pos === pos);
