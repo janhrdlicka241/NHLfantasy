@@ -3,6 +3,7 @@ name: NHL data
 on:
   schedule:
     - cron: "23 * * * *"
+    - cron: "8,38,53 3-8 * * *"
   workflow_dispatch:
     inputs:
       mode:
