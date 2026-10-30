@@ -47,6 +47,15 @@
    "pos": "F",
    "afterBaseGames": 2,
    "pointsFrom": "2026-10-26T13:00:00Z"
+  },
+  {
+   "owner": "Šráma",
+   "replaces": "Suzuki",
+   "sub": "Stützle",
+   "team": "OTT",
+   "pos": "F",
+   "missFrom": "2026-10-23",
+   "subFrom": "2026-10-25"
   }
  ],
  "excelUntil": [
