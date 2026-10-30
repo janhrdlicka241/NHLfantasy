@@ -13,7 +13,7 @@ let raf = 0;
 const S = { league: null, rosters: {}, rosterPicks: {}, months: {}, injuries: [], picks: [], feed: [], pool: null, upcoming: null, results: null, meta: null };
 const store = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 const keep = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
-const U = { me: store("fnhl-me"), month: null, tab: "tabulka", openT: new Set(), openM: new Set(), q: {}, sel: {}, slotOpen: null, pickOpen: null, sortK: "pts", onlyFree: false, sortG: "w", allG: false };
+const U = { me: store("fnhl-me"), month: null, tab: "tabulka", openT: new Set(), openM: new Set(), q: {}, sel: {}, slotOpen: null, pickOpen: null, sortK: "pts", onlyFree: false, openInj: new Set(), sortG: "w", allG: false };
 const TABS = ["tabulka", "den", "tymy", "zraneni", "nhl", "vyuctovani"];
 const h = (location.hash || "").slice(1); if (TABS.includes(h)) U.tab = h;
 
@@ -24,7 +24,7 @@ const list = (qq, key) => onSnapshot(qq, (q) => { S[key] = q.docs.map((d) => ({ 
 function err(e) { console.error(e); document.getElementById("view").innerHTML = `<div class="panel empty">Nepodařilo se načíst data (${V.esc(e.code || e.message)}). Zkontroluj firebase-config.js a pravidla Firestore.</div>`; }
 one("config/league", "league"); one("public/pool", "pool"); one("public/upcoming", "upcoming"); one("public/results", "results"); one("meta/state", "meta");
 map("rosters", "rosters"); map("rosterPicks", "rosterPicks"); map("months", "months");
-list(query(collection(db, "injuries"), where("active", "==", true)), "injuries");
+list(collection(db, "injuries"), "injuries"); // všechna – aktivní i ukončená (kvůli kontrole zápasů)
 list(query(collection(db, "picks"), where("status", "==", "pending")), "picks");
 list(query(collection(db, "feed"), orderBy("ts", "desc"), limit(40)), "feed");
 
@@ -89,6 +89,7 @@ document.getElementById("view").addEventListener("click", async (e) => {
   else if (a === "mopen") { if (e.target.closest('[data-act="paid"]')) return; const k = t.dataset.m; U.openM.has(k) ? U.openM.delete(k) : U.openM.add(k); }
   else if (a === "paid") { e.stopPropagation(); const k = t.dataset.m; try { await updateDoc(doc(db, "months", k), { paid: !S.months[k].paid }); } catch (er) { alert2(er.message); } return; }
   else if (a === "sort") U.sortK = t.dataset.k;
+  else if (a === "injdet") { e.stopPropagation(); const k = t.dataset.id; U.openInj.has(k) ? U.openInj.delete(k) : U.openInj.add(k); }
   else if (a === "games") U.games = t.dataset.k;
   else if (a === "sortg") U.sortG = t.dataset.k;
   else if (a === "allg") U.allG = !U.allG;

@@ -211,11 +211,11 @@ export function vTymy(S, U) {
         const line = (id) => { const p = mp[id] || { g: 0, a: 0, so: 0, gp: 0 };
           return `<div class="mstat">${sl.pos === "G" ? `${p.so} ${p.so === 1 ? "nula" : p.so >= 2 && p.so <= 4 ? "nuly" : "nul"} · ${p.a} A` : `${p.g} G · ${p.a} A`}${p.gp ? ` · ${p.gp} záp.` : ""}</div>`; };
         return `<div class="slotrow"><span class="pos ${sl.pos}">${POSL[sl.pos]}</span>
-          <div class="nb"><div>${esc(sl.base.name)} <span class="nhl">${sl.base.team}</span> ${inj ? '<span class="tag inj">ZRANĚN</span>' : ""}</div>
+          <div class="nb"><div>${esc(sl.base.name)} <span class="nhl">${sl.base.team}</span> ${inj ? '<span class="tag inj">ZRANĚN</span> ' + injToggle(inj, U) : ""}</div>
           ${line(sl.base.id)}
           ${sl.sub ? `<div>${esc(sl.sub.name)} <span class="nhl">${sl.sub.team}</span> <span class="tag sub">náhradník</span> <span class="num">${spt} b.</span></div>${line(sl.sub.id)}` : inj ? `<div class="err">čeká na náhradníka</div>` : ""}
           ${inj && sl.bank > 0 ? `<div class="gamesc">${inj.baseBack ? `${esc(short(sl.base.name))} je zpět – náhradník dohraje ještě ${sl.bank}` : `v bance ${sl.bank} ${sl.bank === 1 ? "zápas" : sl.bank < 5 ? "zápasy" : "zápasů"} pro náhradníka`}</div>` : ""}
-          <div class="gamesc">${slotLabel(sl.key)} · ${sl.games}/84 zápasů</div></div>
+          <div class="gamesc">${slotLabel(sl.key)} · ${sl.games}/84 zápasů</div>${inj ? injDetail(inj, U) : ""}</div>
           <div class="num"><b>${bp}</b></div></div>`; }).join("")}
       ${extra}
     </div>`; }).join("")}</div>
@@ -223,6 +223,31 @@ export function vTymy(S, U) {
 }
 
 // --- Zranění ---
+// Kontrola: zápasy, které základní hráč vynechal, a zápasy, které za něj odehrál náhradník
+const zap = (n) => (n === 1 ? "zápas" : n >= 2 && n <= 4 ? "zápasy" : "zápasů");
+const dmy = (d) => { const [, m, dd] = d.split("-"); return `${+dd}.${+m}.`; };
+function injToggle(i, U) { return `<button class="dtog" data-act="injdet" data-id="${i.id}">${U.openInj.has(i.id) ? "▾" : "▸"} zápasy</button>`; }
+export function injDetail(i, U) {
+  if (!U.openInj.has(i.id)) return "";
+  const ml = i.missedList || [], sl = i.subList || [];
+  const subName = short(i.sub?.name || sl[sl.length - 1]?.name || "Náhradník");
+  const bank = i.bankMode ? (i.bank || 0) : Math.max(0, ml.length - sl.length);
+  const empty = !ml.length && !sl.length;
+  const ok = !empty && ml.length === sl.length && bank === 0;
+  const sum = empty ? "Seznam zápasů se doplní při další synchronizaci." : ok ? `Vynechal <b>${ml.length}</b> · odehrál <b>${sl.length}</b> · v bance <b>0</b> ✓ sedí`
+    : `Vynechal <b>${ml.length}</b> · odehrál <b>${sl.length}</b> · v bance <b>${bank}</b>${bank > 0 ? ` → ${esc(subName)} odehraje ještě ${bank}` : ""}`;
+  const stat = (x) => x.excel ? `<span class="x tname">Excel</span>`
+    : `<span class="x">${x.so ? "nula " : ""}${x.g ? x.g + "G " : ""}${x.a ? x.a + "A " : ""}<b>${x.pts ? "+" + x.pts : "0"}</b></span>`;
+  return `<div class="det">
+    <div class="cols">
+      <div class="col"><h5><span class="who">${esc(short(i.player.name))}</span> vynechal <span class="n">${ml.length}</span></h5>
+        <div class="gl">${ml.map((x) => `<div class="gi miss"><span class="d">${dmy(x.d)}</span><span>${x.opp}</span></div>`).join("") || `<div class="tname">–</div>`}</div></div>
+      <div class="col"><h5><span class="who">${esc(subName)}</span> odehrál <span class="n">${sl.length}</span></h5>
+        <div class="gl">${sl.map((x) => `<div class="gi play ${x.excel ? "excel" : ""}"><span class="d">${dmy(x.d)}</span><span>${x.opp}</span>${stat(x)}</div>`).join("") || `<div class="tname">–</div>`}</div></div>
+    </div>
+    <div class="sum ${empty ? "" : ok ? "ok" : "warn"}">${sum}</div>
+  </div>`;
+}
 function injCard(S, U, i) {
   const mine = i.owner === U.me, ctx = "inj-" + i.id;
   const myPick = S.picks.find((p) => p.status === "pending" && p.injuryId === i.id);
@@ -241,13 +266,19 @@ function injCard(S, U, i) {
     <div class="tname">${[i.status, i.ret, `vynechal ${i.missed} ${i.missed === 1 ? "zápas" : i.missed < 5 ? "zápasy" : "zápasů"}`, `od ${fDT(i.openedAt)}`].filter(Boolean).map(esc).join(" · ")}</div>
     ${i.bankMode && i.bank > 0 ? `<div class="bankline">${i.baseBack ? `${esc(short(i.player.name))} se vrátil – náhradník dohraje ještě <b>${i.bank}</b> ${i.bank === 1 ? "zápas" : i.bank < 5 ? "zápasy" : "zápasů"}` : `V bance <b>${i.bank}</b> ${i.bank === 1 ? "zápas" : i.bank < 5 ? "zápasy" : "zápasů"} – náhradník je odehraje`}</div>` : ""}
     ${body}
-    <div class="acts"><a class="btn sm" href="https://www.tsn.ca/nhl/injuries" target="_blank" rel="noopener">Ověřit na TSN</a></div>
+    <div class="acts">${injToggle(i, U)}<a class="btn sm" href="https://www.tsn.ca/nhl/injuries" target="_blank" rel="noopener">Ověřit na TSN</a></div>
+    ${injDetail(i, U)}
   </div></div>`;
 }
 export function vZraneni(S, U) {
   const act = S.injuries.filter((i) => i.active).sort((a, b) => (b.owner === U.me) - (a.owner === U.me));
   return `<div class="dayhead"><h2>Zranění</h2><span class="tname">přihlášen jako <b>${esc(U.me)}</b> · náhradníka vybírá jen majitel</span></div>
   <div class="notes">${act.length ? act.map((i) => injCard(S, U, i)).join("") : `<div class="panel empty">Nikdo z vašich hráčů teď není zraněný.</div>`}</div>
+  ${(() => { const done = S.injuries.filter((i) => i.active === false && i.closedAt && (i.missedList?.length || i.subList?.length)).sort((a, b) => b.closedAt.localeCompare(a.closedAt)).slice(0, 10);
+    return done.length ? `<h3 class="mh">Ukončená</h3><div class="notes">${done.map((i) => `<div class="panel notice"><div class="ico ok">✓</div><div class="nb">
+      <div class="ihead"><span class="pos ${i.pos}">${POSL[i.pos]}</span> <b>${esc(i.player.name)}</b> <span class="nhl">${i.player.team}</span> ${ownChip(S, i.owner)} <span class="tag sub">vrátil se</span></div>
+      <div class="tname">${(i.subList || []).length ? `náhradník ${esc(short(i.subList[i.subList.length - 1].name))} · ` : ""}ukončeno ${fDT(i.closedAt)}</div>
+      <div class="acts">${injToggle(i, U)}</div>${injDetail(i, U)}</div></div>`).join("")}</div>` : ""; })()}
   <h3 class="mh">Oznámení</h3>
   <div class="panel feed">${S.feed.length ? S.feed.map((f) => `<div class="frow"><span class="ico ${f.kind === "warn" ? "warn" : f.kind === "back" ? "info" : "ok"} s">${f.kind === "warn" ? "!" : f.kind === "back" ? "↩" : "✓"}</span><div class="nb">${esc(f.txt)}</div><span class="tname">${ago(f.ts)}</span></div>`).join("") : `<div class="empty">Zatím žádná oznámení.</div>`}</div>
   <div class="panel rules"><h4>Jak to funguje</h4><ul>
