@@ -237,7 +237,12 @@ export function prepareRetro(st, retro) {
   if (st.months[retro.month]?.locked) { st.months[retro.month] = { key: retro.month, owners: {}, paid: false }; mark(st, `months/${retro.month}`); }
   for (const [owner, roster] of Object.entries(st.rosters)) {
     if (!roster.locked || roster.retroDone === retro.version || !(roster.lockedAt < retro.untilIso)) continue;
-    for (const sl of roster.slots) { sl.activeFrom = retro.fromIso; sl.games = 0; sl.baseMissed = 0; sl.subMissed = 0; sl.basePlayed = 0; }
+    for (const sl of roster.slots) { sl.activeFrom = retro.fromIso; sl.games = 0; sl.baseMissed = 0; sl.subMissed = 0; sl.basePlayed = 0; sl.missBuf = []; }
+    for (const inj of st.injuries) if (inj.active && inj.owner === owner) {
+      inj.missedList = []; inj.subList = [];
+      if (!inj.since) inj.since = inj.openedAt; // staré zranění platí od zjištění, ne od začátku sezóny
+      mark(st, `injuries/${inj.id}`);
+    }
     roster.retroDone = retro.version;
     const m = st.months[retro.month];
     if (m?.owners?.[owner]) { delete m.owners[owner]; mark(st, `months/${retro.month}`); }
@@ -284,7 +289,7 @@ export function applyManual(st, manual, idx, now) {
     if (ownedIds(st, s.owner).has(p.id) || ownOther) { st.log.push({ warn: `Ruční náhradník ${p.name} už má někdo jiný.` }); (st.meta.manualDone ||= []).push(key); continue; }
     let inj = openInjury(st, s.owner, slot.key);
     if (!inj) {
-      inj = { id: genId(), owner: s.owner, slot: slot.key, pos: slot.pos, player: { ...slot.base }, needPick: false, sub: null,
+      inj = { id: genId(), owner: s.owner, slot: slot.key, pos: slot.pos, player: { ...slot.base }, needPick: false, sub: null, missedList: [...(slot.missBuf || [])],
         openedAt: now, since: now, deadline: now, missed: slot.baseMissed, status: "", ret: "", active: true };
       st.injuries.push(inj);
     }
@@ -347,15 +352,32 @@ export function applyManualPre(st, manual, idx, retroOwners, now) {
 // Každý vynechaný zápas základního hráče (brankáře jen když není na soupisce zápasu) přidá 1 do banky,
 // náhradník banku odehraje. Po návratu základního hráče náhradník dohraje zbytek banky a končí.
 export const BANK_FROM = "2026-11-01";
+
+// --- Kontrolní seznamy zápasů u zranění: co základní hráč vynechal a co náhradník odehrál ---
+const oppOf = (game, team) => (game.away === team ? game.home : game.away);
+const pushOnce = (arr, e) => { if (!arr.some((x) => x.id === e.id)) arr.push(e); };
+function recMiss(st, slot, inj, game) {
+  const e = { id: game.id, d: game.date, opp: oppOf(game, slot.base.team) };
+  slot.missBuf ||= []; pushOnce(slot.missBuf, e); if (slot.missBuf.length > 30) slot.missBuf.shift();
+  if (inj) { inj.missedList ||= []; for (const x of slot.missBuf) pushOnce(inj.missedList, x); inj.missedList.sort((a, b) => a.d.localeCompare(b.d)); mark(st, `injuries/${inj.id}`); }
+}
+function recPlay(st, inj, game, who, r) {
+  if (!inj) return;
+  inj.subList ||= [];
+  pushOnce(inj.subList, { id: game.id, d: game.date, opp: oppOf(game, who.team), name: who.name, g: r.g, a: r.a, so: r.so, pts: r.pts, ...(r.excel ? { excel: true } : {}) });
+  inj.subList.sort((a, b) => a.d.localeCompare(b.d)); mark(st, `injuries/${inj.id}`);
+}
 function credit(st, game, parsed, owner, who, slot, role) {
-  if (slot.games >= MAX_GAMES) return;
+  if (slot.games >= MAX_GAMES) return null;
   slot.games++;
-  if (role === "sub" && slot.sub?.pointsFrom && game.start < slot.sub.pointsFrom) return; // body za tyto zápasy jsou z Excelu
   const { so, stats } = parsed, s = stats.get(who.id) || { g: 0, a: 0 };
   const shut = slot.pos === "G" && so.has(who.id) ? 1 : 0, g = slot.pos === "G" ? 0 : s.g;
   const pts = points(slot.pos, g, s.a, shut);
+  if ((role === "sub" && slot.sub?.pointsFrom && game.start < slot.sub.pointsFrom) || blocked(st, owner, who.id, game.start))
+    return { g, a: s.a, so: shut, pts, excel: true }; // body za tyto zápasy jsou z Excelu
   if (addMonth(st, game.date, owner, who, slot, role, g, s.a, shut, pts, game.start))
     st.log.push({ date: game.date, gameId: game.id, owner, id: who.id, name: who.name, team: who.team, pos: slot.pos, g, a: s.a, so: shut, pts });
+  return { g, a: s.a, so: shut, pts };
 }
 function bankSlot(st, game, parsed, now, owner, slot, opts) {
   const teams = [game.away, game.home], { lineup } = parsed;
@@ -367,7 +389,7 @@ function bankSlot(st, game, parsed, now, owner, slot, opts) {
   if (teams.includes(slot.base.team)) {
     mark(st, `rosters/${owner}`);
     if (lineup.has(slot.base.id)) {
-      slot.baseMissed = 0; slot.basePlayed = (slot.basePlayed || 0) + 1;
+      slot.baseMissed = 0; slot.basePlayed = (slot.basePlayed || 0) + 1; slot.missBuf = [];
       if (inj && !inj.baseBack) {
         inj.baseBack = true; mark(st, `injuries/${inj.id}`);
         if (slot.bank > 0 && slot.sub) feed(st, now, "back", `${slot.base.name} (${owner}) se vrátil – ${slot.sub.name} dohraje ještě ${slot.bank} ${slot.bank === 1 ? "zápas" : slot.bank < 5 ? "zápasy" : "zápasů"}.`, owner);
@@ -381,6 +403,7 @@ function bankSlot(st, game, parsed, now, owner, slot, opts) {
         st.injuries.push(inj);
         feed(st, now, "warn", `${slot.base.name} (${owner}) vynechal zápas – vyber náhradníka.`, owner);
       } else { inj.baseBack = false; inj.missed = (inj.missed || 0) + 1; }
+      recMiss(st, slot, inj, game);
       inj.bank = slot.bank; mark(st, `injuries/${inj.id}`);
     }
   }
@@ -388,7 +411,7 @@ function bankSlot(st, game, parsed, now, owner, slot, opts) {
     const canUse = slot.bank > 0 || (!inj.baseBack && (opts.later || []).includes(slot.base.team));
     if (canUse) {
       mark(st, `rosters/${owner}`);
-      if (lineup.has(slot.sub.id)) { slot.subMissed = 0; slot.bank--; credit(st, game, parsed, owner, slot.sub, slot, "sub"); }
+      if (lineup.has(slot.sub.id)) { slot.subMissed = 0; slot.bank--; const r = credit(st, game, parsed, owner, slot.sub, slot, "sub"); if (r) recPlay(st, inj, game, slot.sub, r); }
       else if (++slot.subMissed >= MISS_LIMIT[slot.pos]) {
         feed(st, now, "warn", `Náhradník ${slot.sub.name} (${owner}) vynechal ${slot.subMissed} zápasy – vyber dalšího náhradníka za ${slot.base.name}.`, owner);
         inj.needPick = true; inj.sub = null; inj.deadline = dl(); slot.sub = null;
@@ -422,7 +445,7 @@ export function processGame(st, game, parsed, now, opts = {}) {
       if (teams.includes(slot.base.team)) {
         touched = true;
         if (lineup.has(slot.base.id)) {
-          slot.baseMissed = 0; slot.basePlayed = (slot.basePlayed || 0) + 1;
+          slot.baseMissed = 0; slot.basePlayed = (slot.basePlayed || 0) + 1; slot.missBuf = [];
           if (inj) {
             inj.active = false; inj.closedAt = now; mark(st, `injuries/${inj.id}`);
             feed(st, now, "back", `${slot.base.name} (${owner}) se vrátil do sestavy${slot.sub ? ` – ${slot.sub.name} končí a je znovu volný` : ""}.`, owner);
@@ -430,6 +453,7 @@ export function processGame(st, game, parsed, now, opts = {}) {
           }
         } else {
           slot.baseMissed++;
+          recMiss(st, slot, null, game);
           if (!inj && !opts.quiet && slot.baseMissed >= MISS_LIMIT[slot.pos]) {
             inj = { id: genId(), owner, slot: slot.key, pos: slot.pos, player: { ...slot.base }, needPick: true, sub: null,
               openedAt: now, deadline: new Date(Date.parse(now) + DEADLINE_H * 3600e3).toISOString(),
@@ -437,6 +461,7 @@ export function processGame(st, game, parsed, now, opts = {}) {
             st.injuries.push(inj); mark(st, `injuries/${inj.id}`);
             feed(st, now, "warn", `${slot.base.name} (${owner}) vynechal ${slot.baseMissed} zápasy – vyber náhradníka do 48 h.`, owner);
           } else if (inj) { inj.missed = slot.baseMissed; mark(st, `injuries/${inj.id}`); }
+          if (inj) recMiss(st, slot, inj, game);
         }
       }
       // náhradník: vynechání
@@ -462,6 +487,7 @@ export function processGame(st, game, parsed, now, opts = {}) {
         const g = slot.pos === "G" ? 0 : s.g; // gól brankáře zatím nebodujeme
         const pts = points(slot.pos, g, s.a, shut);
         const added = addMonth(st, game.date, owner, active, slot, active === slot.base ? "base" : "sub", g, s.a, shut, pts, game.start);
+        if (inj && active !== slot.base) recPlay(st, inj, game, active, { g, a: s.a, so: shut, pts, excel: blocked(st, owner, active.id, game.start) });
         if (added) st.log.push({ date: game.date, gameId: game.id, owner, id: active.id, name: active.name, team: active.team, pos: slot.pos, g, a: s.a, so: shut, pts });
       }
     }
