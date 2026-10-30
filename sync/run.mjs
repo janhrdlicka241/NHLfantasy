@@ -10,8 +10,8 @@ let now = new Date().toISOString();
 export const setNow = (v) => { now = v; };
 const nyDate = (d = new Date()) => d.toLocaleDateString("en-CA", { timeZone: "America/New_York" });
 // Říjen 2026: sestavy potvrzené do konce října (čas NHL) se počítají od začátku sezóny
-// version: změna vynutí nový přepočet (v2 = zápasy od 30. 9., v3 = Eichel za Barkova po jeho 2. zápase, v4 = Eichel do 26. 10. jen z Excelu, v5 = seznamy zápasů u zranění, v6 = Stützle za Suzukiho)
-const RETRO = { version: "v6", fromIso: "2026-09-01T00:00:00Z", fromDate: "2026-09-01", untilIso: "2026-11-01T04:00:00Z", month: "2026-10" };
+// version: změna vynutí nový přepočet (v2 = zápasy od 30. 9., v3 = Eichel za Barkova po jeho 2. zápase, v4 = Eichel do 26. 10. jen z Excelu, v5 = seznamy zápasů u zranění, v6 = Stützle za Suzukiho, v7 = data v našem čase)
+const RETRO = { version: "v7", fromIso: "2026-09-01T00:00:00Z", fromDate: "2026-09-01", untilIso: "2026-11-01T04:00:00Z", month: "2026-10" };
 const addDays = (s, n) => { const d = new Date(s + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 
 async function seed(fs) {

@@ -316,7 +316,7 @@ function installPending(st, owner, slot, game, now) {
     sub: { id: p.id, name: p.name, team: p.team }, openedAt: since, since, deadline: since, missed: 0,
     status: "", ret: "", active: true, bankMode: true, bank: 0, manual: true };
   st.injuries.push(inj);
-  const subSince = p.subFrom ? `${p.subFrom}T08:00:00Z` : since; // náhradník hraje až od data (zápasy toho dne v Americe začínají později)
+  const subSince = p.subFrom ? pragueMidnight(p.subFrom) : since; // náhradník hraje od půlnoci daného dne našeho času
   slot.sub = { id: p.id, name: p.name, team: p.team, since: subSince, ...(p.pointsFrom ? { pointsFrom: p.pointsFrom } : {}) }; slot.subMissed = 0;
   slot.bankMode = true; slot.bankInit = true; slot.bank = 0;
   p.installed = true;
@@ -347,6 +347,14 @@ export function applyManualPre(st, manual, idx, retroOwners, now) {
     mark(st, `rosters/${s.owner}`);
     st.log.push({ info: s.missFrom ? `${s.owner}: ${slot.base.name} chybí od ${s.missFrom}, ${p.name} za něj hraje od ${s.subFrom || s.missFrom}.` : `${s.owner}: ${p.name} nastoupí za ${slot.base.name} po jeho ${s.afterBaseGames}. zápase.` });
   }
+}
+
+export const pragueDate = (iso) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Europe/Prague" });
+export function pragueMidnight(date) {
+  // UTC okamžik půlnoci v Praze pro dané datum (zohlední letní/zimní čas)
+  const guess = Date.parse(`${date}T00:00:00Z`);
+  const h = +new Date(guess).toLocaleString("en-US", { timeZone: "Europe/Prague", hour: "numeric", hour12: false });
+  return new Date(guess - (h % 24) * 3600e3).toISOString();
 }
 
 // opts.only = jen tito majitelé (zpětný přepočet), opts.quiet = neotvírat zranění (staré zápasy)
@@ -437,8 +445,9 @@ export function processGame(st, game, parsed, now, opts = {}) {
     for (const slot of roster.slots) {
       if (game.start <= slot.activeFrom) continue; // zápas před potvrzením sestavy
       const ps = slot.pendingSub;
+      // data ručního náhradníka jsou v našem čase (Praha), ne podle kalendáře NHL
       if (ps && !ps.installed && [game.away, game.home].includes(slot.base.team)
-        && (ps.missFrom ? game.date >= ps.missFrom : (slot.basePlayed || 0) >= ps.after)) {
+        && (ps.missFrom ? pragueDate(game.start) >= ps.missFrom : (slot.basePlayed || 0) >= ps.after)) {
         installPending(st, owner, slot, game, now);
       }
       if (game.date >= BANK_FROM || slot.bankMode) { bankSlot(st, game, parsed, now, owner, slot, opts); continue; }
