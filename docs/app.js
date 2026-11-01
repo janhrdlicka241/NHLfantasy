@@ -36,7 +36,7 @@ function draw() {
   if (owners.length && sel.options.length !== owners.length) sel.innerHTML = owners.map((o) => `<option>${V.esc(o)}</option>`).join("");
   if (owners.length && (!U.me || !owners.includes(U.me))) showWho(owners); else document.getElementById("whoOv").hidden = true;
   if (U.me) sel.value = U.me;
-  const keys = Object.keys(S.months).sort(), cur = V.nyDate().slice(0, 7);
+  const keys = monthKeys(), cur = V.nyDate().slice(0, 7);
   if (!U.month || !keys.includes(U.month)) U.month = keys.includes(cur) ? cur : keys[keys.length - 1] || cur;
   const i = keys.indexOf(U.month);
   document.getElementById("mLabel").textContent = V.monthLabel(U.month);
@@ -64,8 +64,10 @@ function showWho(owners) {
 document.getElementById("whoGrid").addEventListener("click", (e) => { const b = e.target.closest("[data-who]"); if (b) setMe(b.dataset.who); });
 document.getElementById("meSel").onchange = (e) => setMe(e.target.value);
 function setMe(o) { U.me = o; keep("fnhl-me", o); U.slotOpen = null; U.pickOpen = null; render(); }
-document.getElementById("prevM").onclick = () => { const k = Object.keys(S.months).sort(); U.month = k[k.indexOf(U.month) - 1] || U.month; render(); };
-document.getElementById("nextM").onclick = () => { const k = Object.keys(S.months).sort(); U.month = k[k.indexOf(U.month) + 1] || U.month; render(); };
+// měsíce s daty + aktuální měsíc podle času NHL (i když v něm ještě nikdo nebodoval)
+function monthKeys() { const cur = V.nyDate().slice(0, 7); const k = new Set(Object.keys(S.months)); if (S.league) k.add(cur); return [...k].sort(); }
+document.getElementById("prevM").onclick = () => { const k = monthKeys(); U.month = k[k.indexOf(U.month) - 1] || U.month; render(); };
+document.getElementById("nextM").onclick = () => { const k = monthKeys(); U.month = k[k.indexOf(U.month) + 1] || U.month; render(); };
 document.querySelectorAll("nav button").forEach((b) => b.onclick = () => go(b.dataset.tab));
 function go(t) { U.tab = t; try { history.replaceState(null, "", "#" + t); } catch {} render(); scrollTo(0, 0); }
 

@@ -95,7 +95,7 @@ export function vTabulka(S, U) {
   const mk = U.month, s = standings(S, mk), L = s[0]?.pts || 0;
   if (!s.length) return `<div class="panel empty">Liga ještě není založená.</div>`;
   return setupAlert(S, U) + vAlert(S, U) + `<div class="summary">
-    <div class="panel stat"><div class="k">Vede ${monthLabel(mk).split(" ")[0].toLowerCase()}</div><div class="v">${esc(s.filter((x) => x.leader).map((x) => x.owner).join(", "))}</div><div class="s">${L} bodů · ${signKc(s[0].bal)}</div></div>
+    <div class="panel stat"><div class="k">Vede ${monthLabel(mk).split(" ")[0].toLowerCase()}</div><div class="v">${L ? esc(s.filter((x) => x.leader).map((x) => x.owner).join(", ")) : "–"}</div><div class="s">${L ? `${L} bodů · ${signKc(s[0].bal)}` : "zatím nikdo nebodoval"}</div></div>
     <div class="panel stat"><div class="k">Nejvíc platí</div><div class="v">${esc(s[s.length - 1].owner)}</div><div class="s">${signKc(s[s.length - 1].bal)}</div></div>
     <div class="panel stat"><div class="k">Součet bodů ligy</div><div class="v">${s.reduce((t, x) => t + x.pts, 0)}</div><div class="s">${S.months[mk]?.locked ? "uzavřený měsíc" : "průběžný stav"}</div></div>
   </div>
