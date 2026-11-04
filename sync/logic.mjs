@@ -375,11 +375,21 @@ export function prepareSlotRedo(st, manual, idx, fromIso, now) {
     if (!p) { st.log.push({ warn: `Přepočet místa: ${s.sub} nenalezen.` }); continue; }
     const own = ownedIds(st, s.owner);
     if (own.has(p.id)) { st.log.push({ warn: `Přepočet místa: ${p.name} už má někdo jiný.` }); st.meta.slotRedoDone.push(key); continue; }
+    // výměna základního hráče (např. Wallstedt → Gustavsson); hráč na IR nemusí být v seznamu NHL, pak použijeme zadané ID
+    let removedBase = null;
+    if (s.newBase) {
+      const nb = [...idx.values()].find((x) => x.pos === slot.pos && norm(x.name).endsWith(norm(s.newBase.name)) && (!s.newBase.team || x.team === s.newBase.team))
+        || (s.newBase.id ? { id: s.newBase.id, name: s.newBase.fullName || s.newBase.name, team: s.newBase.team } : null);
+      if (!nb) { st.log.push({ warn: `Přepočet místa: ${s.newBase.name} nenalezen.` }); continue; }
+      if (own.has(nb.id)) { st.log.push({ warn: `Přepočet místa: ${nb.name} už má někdo jiný.` }); st.meta.slotRedoDone.push(key); continue; }
+      removedBase = slot.base;
+      slot.base = { id: nb.id, name: nb.name, team: nb.team };
+    }
     // zrušit dosavadní zranění a body tohoto místa
     for (const inj of st.injuries) if (inj.active && inj.owner === s.owner && inj.slot === slot.key) { inj.active = false; inj.closedAt = now; inj.replaced = true; mark(st, `injuries/${inj.id}`); }
     for (const [mk, m] of Object.entries(st.months)) {
       const o = m.owners?.[s.owner]; if (!o || m.locked) continue;
-      for (const [pid, pl] of Object.entries(o.players || {})) if (pl.slot === slot.key || Number(pid) === p.id) { o.pts -= pl.pts || 0; delete o.players[pid]; mark(st, `months/${mk}`); }
+      for (const [pid, pl] of Object.entries(o.players || {})) if (pl.slot === slot.key || Number(pid) === p.id || (removedBase && Number(pid) === removedBase.id)) { o.pts -= pl.pts || 0; delete o.players[pid]; mark(st, `months/${mk}`); }
     }
     Object.assign(slot, { activeFrom: fromIso, games: 0, baseMissed: 0, subMissed: 0, basePlayed: 0, missBuf: [], sub: null, bank: 0, bankMode: false, bankInit: false,
       pendingSub: { id: p.id, name: p.name, team: p.team, after: 0, missFrom: s.missFrom, subFrom: s.subFrom || s.missFrom } });
@@ -387,7 +397,7 @@ export function prepareSlotRedo(st, manual, idx, fromIso, now) {
     if (!out.has(s.owner)) out.set(s.owner, new Set());
     out.get(s.owner).add(slot.key);
     st.meta.slotRedoDone.push(key);
-    st.log.push({ info: `${s.owner}: místo ${slot.key} se přepočítá – ${p.name} za ${slot.base.name} od ${s.missFrom}.` });
+    st.log.push({ info: `${s.owner}: místo ${slot.key} se přepočítá – ${removedBase ? `${removedBase.name} odebrán, základní ${slot.base.name}, ` : ""}${p.name} za ${slot.base.name} od ${s.missFrom}.` });
   }
   return out;
 }
