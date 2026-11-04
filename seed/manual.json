@@ -59,13 +59,19 @@
   },
   {
    "owner": "Šráma",
-   "replaces": "Gustavsson",
+   "replaces": "Wallstedt",
+   "newBase": {
+    "name": "Gustavsson",
+    "fullName": "Filip Gustavsson",
+    "team": "MIN",
+    "id": 8479406
+   },
    "sub": "Luukkonen",
    "team": "BUF",
    "pos": "G",
    "missFrom": "2026-09-01",
    "subFrom": "2026-09-01",
-   "slotRedo": "v1"
+   "slotRedo": "v2"
   }
  ],
  "excelUntil": [
