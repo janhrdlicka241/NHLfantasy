@@ -268,7 +268,7 @@ export function applyManual(st, manual, idx, now) {
     o.pts += pts; mark(st, `months/${m.month}`);
   }
   for (const s of manual.subs || []) {
-    if (s.afterBaseGames != null || s.missFrom) continue; // řeší applyManualPre při přepočtu
+    if (s.afterBaseGames != null || s.missFrom || s.slotRedo) continue; // řeší applyManualPre / prepareSlotRedo
     const key = `${s.owner}|${s.replaces}|${s.sub}|${s.subGames ?? ""}`;
     if ((st.meta.manualDone || []).includes(key)) continue;
     const roster = st.rosters[s.owner];
@@ -333,7 +333,7 @@ export function applyManualPre(st, manual, idx, retroOwners, now) {
     for (const id of ids) st.noPts.push({ owner: e.owner, id, until: e.until });
   }
   for (const s of manual.subs || []) {
-    if ((s.afterBaseGames == null && !s.missFrom) || !retroOwners.has(s.owner)) continue;
+    if ((s.afterBaseGames == null && !s.missFrom) || s.slotRedo || !retroOwners.has(s.owner)) continue;
     const roster = st.rosters[s.owner];
     const slot = roster?.slots?.find((x) => norm(x.base.name).endsWith(norm(s.replaces)));
     if (!slot) { st.log.push({ warn: `Ruční náhradník: ${s.owner} nemá v sestavě ${s.replaces}.` }); continue; }
@@ -355,6 +355,41 @@ export function pragueMidnight(date) {
   const guess = Date.parse(`${date}T00:00:00Z`);
   const h = +new Date(guess).toLocaleString("en-US", { timeZone: "Europe/Prague", hour: "numeric", hour12: false });
   return new Date(guess - (h % 24) * 3600e3).toISOString();
+}
+
+// Přepočet jednoho místa v sestavě od začátku sezóny (např. Luukkonen za Gustavssona u Šrámy).
+// Vrací Map(majitel -> Set(místa)) pro zpracování zápasů.
+export function prepareSlotRedo(st, manual, idx, fromIso, now) {
+  const norm = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const out = new Map();
+  st.meta.slotRedoDone ||= [];
+  for (const s of manual.subs || []) {
+    if (!s.slotRedo) continue;
+    const key = `${s.owner}|${s.replaces}|${s.sub}|${s.slotRedo}`;
+    if (st.meta.slotRedoDone.includes(key)) continue;
+    const roster = st.rosters[s.owner];
+    if (!roster?.locked) { st.log.push({ warn: `Přepočet místa: ${s.owner} nemá potvrzenou sestavu.` }); continue; }
+    const slot = roster.slots.find((x) => norm(x.base.name).endsWith(norm(s.replaces)));
+    if (!slot) { st.log.push({ warn: `Přepočet místa: ${s.owner} nemá v sestavě ${s.replaces}.` }); st.meta.slotRedoDone.push(key); continue; }
+    const p = [...idx.values()].find((x) => x.pos === slot.pos && norm(x.name).endsWith(norm(s.sub)) && (!s.team || x.team === s.team));
+    if (!p) { st.log.push({ warn: `Přepočet místa: ${s.sub} nenalezen.` }); continue; }
+    const own = ownedIds(st, s.owner);
+    if (own.has(p.id)) { st.log.push({ warn: `Přepočet místa: ${p.name} už má někdo jiný.` }); st.meta.slotRedoDone.push(key); continue; }
+    // zrušit dosavadní zranění a body tohoto místa
+    for (const inj of st.injuries) if (inj.active && inj.owner === s.owner && inj.slot === slot.key) { inj.active = false; inj.closedAt = now; inj.replaced = true; mark(st, `injuries/${inj.id}`); }
+    for (const [mk, m] of Object.entries(st.months)) {
+      const o = m.owners?.[s.owner]; if (!o || m.locked) continue;
+      for (const [pid, pl] of Object.entries(o.players || {})) if (pl.slot === slot.key || Number(pid) === p.id) { o.pts -= pl.pts || 0; delete o.players[pid]; mark(st, `months/${mk}`); }
+    }
+    Object.assign(slot, { activeFrom: fromIso, games: 0, baseMissed: 0, subMissed: 0, basePlayed: 0, missBuf: [], sub: null, bank: 0, bankMode: false, bankInit: false,
+      pendingSub: { id: p.id, name: p.name, team: p.team, after: 0, missFrom: s.missFrom, subFrom: s.subFrom || s.missFrom } });
+    mark(st, `rosters/${s.owner}`);
+    if (!out.has(s.owner)) out.set(s.owner, new Set());
+    out.get(s.owner).add(slot.key);
+    st.meta.slotRedoDone.push(key);
+    st.log.push({ info: `${s.owner}: místo ${slot.key} se přepočítá – ${p.name} za ${slot.base.name} od ${s.missFrom}.` });
+  }
+  return out;
 }
 
 // opts.only = jen tito majitelé (zpětný přepočet), opts.quiet = neotvírat zranění (staré zápasy)
@@ -443,6 +478,7 @@ export function processGame(st, game, parsed, now, opts = {}) {
     if (!roster.locked) continue;
     if (opts.only && !opts.only.has(owner)) continue;
     for (const slot of roster.slots) {
+      if (opts.slots && !opts.slots.get(owner)?.has(slot.key)) continue;
       if (game.start <= slot.activeFrom) continue; // zápas před potvrzením sestavy
       const ps = slot.pendingSub;
       // data ručního náhradníka jsou v našem čase (Praha), ne podle kalendáře NHL

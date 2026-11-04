@@ -61,6 +61,7 @@ async function sync(fs) {
   let manual = {};
   try { manual = JSON.parse(readFileSync(new URL("../seed/manual.json", import.meta.url))); } catch { console.log("seed/manual.json nenalezen – bez ručních úprav."); }
   L.applyManualPre(st, manual, idx, retroOwners, now);
+  const redo = L.prepareSlotRedo(st, manual, idx, RETRO.fromIso, now);
   if (retroOwners.size) console.log(`Zpětný přepočet října pro: ${[...retroOwners].join(", ")}`);
 
   // 3) odehrané zápasy od posledního běhu (+ všechny od začátku sezóny pro zpětný přepočet)
@@ -69,7 +70,8 @@ async function sync(fs) {
   const done = new Map(Array.isArray(dg) ? dg.map(([id, d]) => [id, d]) : Object.entries(dg).map(([id, d]) => [Number(id), d]));
   const from = st.meta.lastDate || addDays(today, -2);
   const winFrom = addDays(today, -7), winTo = addDays(today, 7); // okno pro záložku Zápasy
-  let scanFrom = retroOwners.size && RETRO.fromDate < from ? RETRO.fromDate : from;
+  const needOld = retroOwners.size || redo.size;
+  let scanFrom = needOld && RETRO.fromDate < from ? RETRO.fromDate : from;
   if (winFrom < scanFrom) scanFrom = winFrom;
   const games = [], retroGames = [], upcoming = [], finals = [], byDate = {};
   for (let d = scanFrom; d <= winTo;) {
@@ -80,7 +82,7 @@ async function sync(fs) {
       if (!(byDate[day.date] ||= []).some((x) => x.id === g.id)) byDate[day.date].push(g);
       if (day.date <= today && nhl.isFinal(g) && !games.some((x) => x.id === g.id) && !retroGames.some((x) => x.id === g.id)) {
         if (day.date >= from && !done.has(g.id)) games.push(g);
-        else if (retroOwners.size && day.date >= RETRO.fromDate) retroGames.push(g);
+        else if (needOld && day.date >= RETRO.fromDate) retroGames.push(g);
         if (day.date >= winFrom && !finals.some((x) => x.id === g.id)) finals.push(g);
       }
       if (day.date >= today && day.date <= winTo && !nhl.isFinal(g) && !upcoming.some((x) => x.id === g.id)) upcoming.push(g);
@@ -95,7 +97,9 @@ async function sync(fs) {
     const [box, land] = await Promise.all([nhl.boxscore(g.id), nhl.landing(g.id)]);
     cache.set(g.id, [box, land]);
     const laterR = (byDate[g.date] || []).filter((x) => x.start > g.start).flatMap((x) => [x.away, x.home]);
-    L.processGame(st, g, L.parseGame(box, land), now, { only: retroOwners, quiet: g.date < addDays(today, -2), later: laterR });
+    const parsed = L.parseGame(box, land), quiet = g.date < addDays(today, -2);
+    if (retroOwners.size && g.date < "2026-11-01") L.processGame(st, g, parsed, now, { only: retroOwners, quiet, later: laterR });
+    if (redo.size) L.processGame(st, g, parsed, now, { only: new Set(redo.keys()), slots: redo, quiet, later: laterR });
   }
   if (retroGames.length) console.log(`Zpětně přepočteno zápasů: ${retroGames.length}`);
   games.sort((a, b) => a.start.localeCompare(b.start));
