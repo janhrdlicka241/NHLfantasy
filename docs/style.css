@@ -217,3 +217,17 @@ tr.cut td{border-bottom:2px dashed var(--red)}
 .frm .W{background:var(--good)}.frm .L{background:var(--red)}.frm .O{background:var(--gold)}
 .dots{white-space:nowrap}.dots i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:2px;background:var(--line)}
 .dots i.p{background:var(--blue)}.dots i.na{background:transparent;border:1px dashed var(--line);box-sizing:border-box}
+
+/* v1.27 Vyúčtování */
+.pod{display:grid;grid-template-columns:1fr 1.15fr 1fr;gap:8px;align-items:end;margin:6px 0 10px}
+.pod>div{background:var(--ice);border-radius:6px;text-align:center;padding:10px 4px 8px;border-top:4px solid var(--c)}
+.pod>div:empty{background:none;border:0}
+.pod .p1{padding-top:18px;background:color-mix(in srgb,var(--gold) 16%,var(--surface))}
+.pod .m{font-family:var(--display);font-size:26px;font-weight:800;line-height:1;color:var(--muted)}.pod .p1 .m{color:var(--gold)}
+.pod .n{font-weight:700;margin-top:4px}.pod .b{font-family:var(--display);font-size:22px;font-weight:800}.pod .k{font-size:12px;font-weight:700}
+.tot{display:flex;justify-content:space-between;align-items:baseline;background:var(--navy);color:#fff;border-radius:6px;padding:10px 14px;margin-bottom:12px}
+.tot b{font-family:var(--display);font-size:26px}
+tr.op td{background:var(--ice)} .car{color:var(--muted);font-size:13px} .bal{white-space:nowrap}
+.prow td{padding:7px 12px;font-size:14px;background:var(--surface);border-bottom:1px dashed var(--line)}
+.ss th,.ss td{padding:9px 8px}.ss td.best{background:color-mix(in srgb,var(--gold) 22%,transparent);font-weight:700}
+.ss tfoot td{font-weight:700;border-top:2px solid var(--line);border-bottom:0}

@@ -330,11 +330,19 @@ function vHraci(S, U) {
 export function vVyuct(S, U) {
   const kc = S.league?.kc || 5, today = nyDate();
   const keys = Object.keys(S.months).sort().reverse();
-  const detail = (s) => {
+  const total = (s) => s.reduce((t, x) => t + x.pts, 0);
+  const subFor = (o, p) => { if (p.role !== "sub") return ""; const sl = (S.rosters[o]?.slots || []).find((x) => x.key === p.slot); return sl ? `za ${short(sl.base.name)}` : "náhradník"; };
+  const prows = (k, o) => Object.values(S.months[k]?.owners?.[o]?.players || {}).sort((a, b) => b.pts - a.pts).map((p) => {
+    const sf = subFor(o, p), st = p.pos === "G" ? [p.so ? `${p.so}× nula` : "", p.a ? `${p.a} A` : ""].filter(Boolean).join(", ") || "bez bodů" : `${p.g || 0} G, ${p.a || 0} A`;
+    return `<tr class="prow"><td></td><td><span class="pos ${p.pos}">${POSL[p.pos]}</span> ${esc(p.name)} <span class="nhl">${esc(p.team || "")}</span>${sf ? ` <span class="tag sub">${esc(sf)}</span>` : ""}<div class="tname">${st}</div></td><td class="num"><b>${p.pts}</b></td><td></td></tr>`; }).join("");
+  const podium = (s) => { const t = [s[1], s[0], s[2]]; return `<div class="pod">${t.map((x, i) => x ? `<div class="${i === 1 ? "p1" : ""}" style="--c:${col(S, x.owner)}"><div class="m">${[2, 1, 3][i]}.</div><div class="n">${esc(x.owner)}</div><div class="b">${x.pts} b.</div><div class="k ${balCls(x.bal)}">${signKc(x.bal)}</div></div>` : "<div></div>").join("")}</div>`; };
+  const detail = (s, k) => {
     const pays = (x) => s.filter((y) => y.pts > x.pts).map((y) => ({ to: y.owner, d: y.pts - x.pts }));
-    return `<div class="mbody">
+    return `<div class="mbody">${podium(s)}
+    <div class="tot"><span>Celkem bodů za měsíc</span><b>${total(s)}</b></div>
     <div class="panel scroll"><table><thead><tr><th></th><th>Hráč</th><th class="num">Body</th><th class="num">Bilance</th></tr></thead>
-    <tbody>${s.map((x, i) => `<tr class="${x.leader ? "leader" : ""}"><td class="rank">${i + 1}</td><td class="own">${esc(x.owner)}</td><td class="num pts">${x.pts}</td><td class="num ${balCls(x.bal)}"><b>${signKc(x.bal)}</b></td></tr>`).join("")}</tbody></table></div>
+    <tbody>${s.map((x, i) => { const op = U.openO?.has(k + "|" + x.owner);
+      return `<tr class="${x.leader ? "leader" : ""} ${op ? "op" : ""}" data-act="oopen" data-k="${k}|${esc(x.owner)}" role="button" style="cursor:pointer"><td class="rank">${i + 1}</td><td class="own">${esc(x.owner)} <span class="car">${op ? "▾" : "▸"}</span></td><td class="num pts">${x.pts}</td><td class="num bal ${balCls(x.bal)}"><b>${signKc(x.bal)}</b></td></tr>${op ? prows(k, x.owner) : ""}`; }).join("")}</tbody></table></div>
     <h3 class="mh">Kdo komu platí</h3>
     <div class="pay">${s.map((x) => { const p = pays(x), out = p.reduce((t, q) => t + q.d * kc, 0), inn = x.bal + out;
       return `<div class="panel payrow"><div style="min-width:0"><div class="who">${esc(x.owner)}</div>
@@ -343,12 +351,25 @@ export function vVyuct(S, U) {
     <div class="panel scroll" style="margin-top:12px"><table class="matrix"><thead><tr><th>platí ↓ / dostává →</th>${s.map((y) => `<th class="num">${esc(y.owner)}</th>`).join("")}</tr></thead>
     <tbody>${s.map((x) => `<tr><td class="own">${esc(x.owner)}</td>${s.map((y) => `<td class="num">${y.pts > x.pts ? (y.pts - x.pts) * kc : '<span class="tname">·</span>'}</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>`;
   };
-  return `<div class="months">${keys.map((k) => { const s = standings(S, k), o = U.openM.has(k), pd = !!S.months[k].paid, closed = S.months[k].locked || today.slice(0, 7) > k;
+  // přehled sezóny – měsíce vedle sebe
+  const asc = [...keys].reverse(), owners = S.league?.owners || [], kcMode = U.vyuK === "k";
+  const per = Object.fromEntries(asc.map((k) => [k, Object.fromEntries(standings(S, k).map((x) => [x.owner, kcMode ? x.bal : x.pts]))]));
+  const srow = owners.map((o) => ({ o, v: asc.map((k) => per[k][o] || 0) })).map((r) => ({ ...r, s: r.v.reduce((t, x) => t + x, 0) })).sort((a, b) => b.s - a.s);
+  const mx = asc.map((_, j) => Math.max(...srow.map((r) => r.v[j])));
+  const fv = (n) => (kcMode ? `<span class="${balCls(n)}">${signKc(n)}</span>` : n);
+  const MS = ["Led", "Úno", "Bře", "Dub", "Kvě", "Čer", "Čvc", "Srp", "Zář", "Říj", "Lis", "Pro"];
+  const season = asc.length ? `<h3 class="mh" style="margin-top:0">Přehled sezóny</h3>
+  <div class="seg"><button class="btn ${kcMode ? "" : "pri"}" data-act="vyuk" data-k="b">Body</button><button class="btn ${kcMode ? "pri" : ""}" data-act="vyuk" data-k="k">Kč</button></div>
+  <div class="panel scroll"><table class="ss"><thead><tr><th></th><th>Hráč</th>${asc.map((k) => `<th class="num">${MS[+k.slice(5, 7) - 1]}</th>`).join("")}<th class="num">Sezóna</th></tr></thead>
+  <tbody>${srow.map((r, i) => `<tr><td class="rank" style="font-size:17px">${i + 1}</td><td>${ownChip(S, r.o)}</td>${r.v.map((v, j) => `<td class="num ${v === mx[j] && v > 0 ? "best" : ""}">${fv(v)}</td>`).join("")}<td class="num pts" style="font-size:19px">${fv(r.s)}</td></tr>`).join("")}</tbody>
+  ${kcMode ? "" : `<tfoot><tr><td></td><td>Celkem</td>${asc.map((_, j) => `<td class="num">${srow.reduce((t, r) => t + r.v[j], 0)}</td>`).join("")}<td class="num">${srow.reduce((t, r) => t + r.s, 0)}</td></tr></tfoot>`}</table></div>
+  <p class="note" style="margin-bottom:18px">Zlatě = nejlepší v měsíci.${kcMode ? " Kč = bilance (kolik kdo dostal nebo zaplatil)." : ""}</p>` : "";
+  return `${season}<div class="months">${keys.map((k) => { const s = standings(S, k), o = U.openM.has(k), pd = !!S.months[k].paid, closed = S.months[k].locked || today.slice(0, 7) > k;
     return `<div class="panel month-card"><div class="mrow" data-act="mopen" data-m="${k}" role="button" tabindex="0">
       <div><div class="mname">${monthLabel(k)} <span class="car">${o ? "▾" : "▸"}</span></div>
-      <div class="tname">${closed ? "uzavřeno" : "průběžně – uzavře se poslední den měsíce (čas NHL)"} · vede ${esc(s[0]?.owner)} ${signKc(s[0]?.bal || 0)}</div></div>
+      <div class="tname">${closed ? "uzavřeno" : "průběžně – uzavře se poslední den měsíce (čas NHL)"} · celkem ${total(s)} bodů · vede ${esc(s[0]?.owner)} ${signKc(s[0]?.bal || 0)}</div></div>
       ${closed ? `<button class="btn ${pd ? "paidb" : "pri"}" data-act="paid" data-m="${k}">${pd ? "✓ Vyplaceno" : "Označit jako vyplaceno"}</button>` : ""}
-    </div>${o ? detail(s) : ""}</div>`; }).join("")}</div>
+    </div>${o ? detail(s, k) : ""}</div>`; }).join("")}</div>
   <div class="panel rules"><h4>Pravidla</h4><ul>
     <li>Útočník: gól 2 b., asistence 1 b. Obránce: gól 3 b., asistence 1 b. Brankář: čisté konto 5 b., asistence 1 b.</li>
     <li>Každý platí každému, kdo je nad ním, ${kc} Kč za každý bod rozdílu. Na konci měsíce se body nulují.</li>

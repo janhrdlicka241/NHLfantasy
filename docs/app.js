@@ -96,6 +96,8 @@ document.getElementById("view").addEventListener("click", async (e) => {
   else if (a === "sortg") U.sortG = t.dataset.k;
   else if (a === "allg") U.allG = !U.allG;
   else if (a === "stat") U.stat = t.dataset.k;
+  else if (a === "vyuk") U.vyuK = t.dataset.k;
+  else if (a === "oopen") { (U.openO ||= new Set()); const k = t.dataset.k; U.openO.has(k) ? U.openO.delete(k) : U.openO.add(k); }
   else if (a === "stdv") U.stdV = t.dataset.k;
   else if (a === "formn") U.formN = +t.dataset.k;
   else if (a === "formfree") U.formFree = t.checked;
