@@ -46,7 +46,8 @@ async function sync(fs) {
 
   // 1) statistiky celé ligy (výběr hráčů, žebříčky) + odehrané zápasy týmů
   const pool = await nhl.pool(season);
-  const teamGP = await nhl.teamGamesPlayed();
+  const table = await nhl.standings();
+  const teamGP = Object.fromEntries(table.map((t) => [t.t, t.gp]));
   const added = L.mergeRosters(pool, await nhl.rosters(Object.keys(teamGP).filter(Boolean)));
   console.log(`Ze soupisek doplněno hráčů bez zápasu: ${added}`);
   const idx = L.poolIndex(pool);
@@ -72,8 +73,9 @@ async function sync(fs) {
   const winFrom = addDays(today, -7), winTo = addDays(today, 7); // okno pro záložku Zápasy
   const needOld = retroOwners.size || redo.size;
   let scanFrom = needOld && RETRO.fromDate < from ? RETRO.fromDate : from;
-  if (winFrom < scanFrom) scanFrom = winFrom;
-  const games = [], retroGames = [], upcoming = [], finals = [], byDate = {};
+  const formFrom = addDays(today, -30); // forma hráčů a týmů
+  if (formFrom < scanFrom) scanFrom = formFrom;
+  const games = [], retroGames = [], upcoming = [], finals = [], byDate = {}, formGames = [];
   for (let d = scanFrom; d <= winTo;) {
     const week = await nhl.scheduleWeek(d);
     if (!week.length) break;
@@ -86,6 +88,7 @@ async function sync(fs) {
         if (day.date >= winFrom && !finals.some((x) => x.id === g.id)) finals.push(g);
       }
       if (day.date >= today && day.date <= winTo && !nhl.isFinal(g) && !upcoming.some((x) => x.id === g.id)) upcoming.push(g);
+      if (day.date >= formFrom && day.date <= today && nhl.isFinal(g) && !formGames.some((x) => x.id === g.id)) formGames.push(g);
     }
     const next = addDays(week[week.length - 1].date, 1);
     if (next <= d) break;
@@ -117,10 +120,23 @@ async function sync(fs) {
   for (const w of st.log.filter((e) => e.info)) console.log("INFO:", w.info);
   st.log = st.log.filter((e) => !e.warn && !e.info);
 
-  // 4) ESPN – důvod a odhad návratu (nepovinné)
-  if (st.injuries.some((i) => i.active)) {
-    try { L.enrichInjuries(st, await nhl.espnInjuries()); } catch (e) { console.log("ESPN nedostupné:", e.message); }
+  // 4) ESPN – důvod a odhad návratu (nepovinné); seznam zraněných i pro „Nejlepší volní“
+  let espn = null;
+  try { espn = await nhl.espnInjuries(); } catch (e) { console.log("ESPN nedostupné:", e.message); }
+  if (espn && st.injuries.some((i) => i.active)) L.enrichInjuries(st, espn);
+
+  // 4b) forma hráčů – boxscore zápasů za 30 dní, které ještě nemáme
+  const fSnap = await fs.doc("public/form").get();
+  const fd = fSnap.exists ? fSnap.data() : {};
+  const form = fd.v === 1 ? { p: fd.p || {}, games: fd.games || {} } : { p: {}, games: {} };
+  const todo = formGames.filter((g) => !form.games[String(g.id)]).sort((a, b) => a.start.localeCompare(b.start));
+  for (let i = 0; i < todo.length; i += 8) {
+    const part = todo.slice(i, i + 8);
+    const boxes = await Promise.all(part.map((g) => (cache.get(g.id) ? Promise.resolve(cache.get(g.id)[0]) : nhl.boxscore(g.id).catch((e) => { console.log(`Forma ${g.id}: ${e.message}`); return null; }))));
+    part.forEach((g, k) => { if (boxes[k]) L.addForm(form, g, L.boxForm(boxes[k])); });
   }
+  form.games = Object.fromEntries(Object.entries(form.games).filter(([, d]) => d >= addDays(today, -40)));
+  console.log(`Forma: nově ${todo.length} zápasů, hráčů ${Object.keys(form.p).length}`);
 
   // 5) uložení
   const keepFrom = addDays(today, -10);
@@ -152,6 +168,8 @@ async function sync(fs) {
     "public/pool": { ...L.encodePool(pool), updated: now },
     "public/upcoming": { games: upcoming.sort((a, b) => a.start.localeCompare(b.start)), updated: now },
     "public/results": { days, updated: now },
+    "public/standings": { teams: table, form: L.teamForm(formGames), updated: now },
+    "public/form": { v: 1, p: form.p, games: form.games, inj: (espn || []).map((x) => `${x.name}|${x.status}`), updated: now },
   };
   if (DRY) { console.log("DRY – neukládám.", [...st.dirty], st.feed); return; }
   console.log(`Zápisů: ${await save(fs, st, extra)}`);

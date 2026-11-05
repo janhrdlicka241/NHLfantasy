@@ -563,3 +563,39 @@ export function enrichInjuries(st, espnList) {
     if (e && (e.status !== inj.status || e.ret !== inj.ret)) { inj.status = e.status; inj.ret = e.ret; mark(st, `injuries/${inj.id}`); }
   }
 }
+
+// --- Forma: posledních 10 zápasů každého hráče (z boxscore) ---
+// Uloženo jako { p: { "idHráče": "20261104.g.a.so 20261102.g.a.so …" (nejnovější první) }, games: { "idZápasu": "datum" } }
+export function boxForm(box) {
+  const out = [];
+  for (const side of ["awayTeam", "homeTeam"]) {
+    const t = box?.playerByGameStats?.[side] || {};
+    for (const p of [...(t.forwards || []), ...(t.defense || [])]) out.push({ id: p.playerId, g: p.goals || 0, a: p.assists || 0, so: 0 });
+    const played = (t.goalies || []).filter((g) => g.toi && g.toi !== "00:00");
+    for (const g of played) out.push({ id: g.playerId, g: 0, a: g.assists || 0, so: played.length === 1 && (g.goalsAgainst ?? 1) === 0 ? 1 : 0 });
+  }
+  return out;
+}
+export function addForm(form, game, rows, keep = 10) {
+  form.p ||= {}; form.games ||= {};
+  const d = game.date.replaceAll("-", "");
+  for (const r of rows) {
+    const k = String(r.id);
+    const list = (form.p[k] || "").split(" ").filter((x) => x && !x.startsWith(d + "."));
+    list.push(`${d}.${r.g}.${r.a}.${r.so}`);
+    form.p[k] = list.sort().reverse().slice(0, keep).join(" ");
+  }
+  form.games[String(game.id)] = game.date;
+}
+// Forma týmů z výsledků: { TOR: "WLOWW…" } (nejstarší vlevo, max 10) – W výhra, L prohra, O prohra v prodloužení/nájezdech
+export function teamForm(finals) {
+  const out = {};
+  for (const g of [...finals].sort((a, b) => a.start.localeCompare(b.start))) {
+    if (g.as == null || g.hs == null) continue;
+    const ot = g.last && g.last !== "REG";
+    const r = (mine, theirs) => (mine > theirs ? "W" : ot ? "O" : "L");
+    out[g.away] = ((out[g.away] || "") + r(g.as, g.hs)).slice(-10);
+    out[g.home] = ((out[g.home] || "") + r(g.hs, g.as)).slice(-10);
+  }
+  return out;
+}

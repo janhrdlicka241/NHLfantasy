@@ -34,12 +34,17 @@ export const isLive = (g) => g.state === "LIVE" || g.state === "CRIT";
 export const boxscore = (id) => getJson(`${WEB}/gamecenter/${id}/boxscore`);
 export const landing = (id) => getJson(`${WEB}/gamecenter/${id}/landing`);
 
-// Odehrané zápasy týmů v sezóně (pro počítadlo 82)
-export async function teamGamesPlayed() {
+// Tabulka NHL (pořadí, divize, konference) – zároveň odehrané zápasy týmů pro počítadlo 84
+export async function standings() {
   const j = await getJson(`${WEB}/standings/now`);
-  const out = {};
-  for (const t of j.standings || []) out[t.teamAbbrev?.default] = t.gamesPlayed || 0;
-  return out;
+  return (j.standings || []).map((t) => ({
+    t: t.teamAbbrev?.default, n: t.teamName?.default || t.placeName?.default || "", conf: t.conferenceName || "", div: t.divisionName || "",
+    gp: t.gamesPlayed || 0, w: t.wins || 0, l: t.losses || 0, ot: t.otLosses || 0, pts: t.points || 0, gd: t.goalDifferential ?? 0,
+    ds: t.divisionSequence || 0, cs: t.conferenceSequence || 0, ls: t.leagueSequence || 0, wc: t.wildcardSequence || 0,
+  })).filter((t) => t.t);
+}
+export async function teamGamesPlayed() {
+  return Object.fromEntries((await standings()).map((t) => [t.t, t.gp]));
 }
 
 const lastTeam = (s) => (s || "").split(",").pop().trim();
