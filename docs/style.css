@@ -204,3 +204,16 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .sum{padding:7px 10px;border-radius:4px;background:var(--ice);font-size:13px}
 .sum.warn{background:color-mix(in srgb,var(--gold) 18%,transparent)}
 .sum.ok{background:color-mix(in srgb,var(--good) 15%,transparent)}
+
+/* v1.26 Statistiky */
+.subtabs{margin-bottom:14px}
+table.std .tm{white-space:nowrap}
+.od{display:inline-block;width:10px;height:10px;border-radius:50%;margin-left:3px;vertical-align:middle}
+.wc{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:3px;padding:0 3px;margin-left:4px}
+tr.mine td{background:color-mix(in srgb,var(--c) 10%,transparent)}
+tr.mine td:first-child{box-shadow:inset 4px 0 0 var(--c)}
+tr.cut td{border-bottom:2px dashed var(--red)}
+.frm{white-space:nowrap}.frm b{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:2px}
+.frm .W{background:var(--good)}.frm .L{background:var(--red)}.frm .O{background:var(--gold)}
+.dots{white-space:nowrap}.dots i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:2px;background:var(--line)}
+.dots i.p{background:var(--blue)}.dots i.na{background:transparent;border:1px dashed var(--line);box-sizing:border-box}
