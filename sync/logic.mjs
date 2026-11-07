@@ -192,7 +192,8 @@ export function parseGoals(landing) {
       const st = (g.strength || "").toLowerCase();
       const k = g.goalModifier === "empty-net" ? "EN" : st === "pp" ? "PP" : st === "sh" ? "SH" : null;
       out.push({ p, t: g.timeInPeriod || "", team: g.teamAbbrev?.default || g.teamAbbrev || "",
-        s: { id: g.playerId, n: nm(g) }, a: (g.assists || []).map((x) => ({ id: x.playerId, n: nm(x) })), ...(k ? { k } : {}) });
+        s: { id: g.playerId, n: nm(g) }, a: (g.assists || []).map((x) => ({ id: x.playerId, n: nm(x) })), ...(k ? { k } : {}),
+        ...(g.highlightClipSharingUrl ? { v: g.highlightClipSharingUrl } : {}) });
     }
   }
   return out;
@@ -599,3 +600,67 @@ export function teamForm(finals) {
   }
   return out;
 }
+
+// --- Sestavy a formace z boxscore + střídání ---
+// Výstup pro tým: { p: ["id|jméno|F|g|a|+/-|toi"], g: ["id|jméno|zás/střel|%|toi"], f: ["id,id,id|sekund"], d: ["id,id|sekund"] }
+const toSec = (s) => { const [m, x] = String(s || "0:0").split(":").map(Number); return (m || 0) * 60 + (x || 0); };
+export function pairOverlap(a, b) { // a, b: [[od, do], …] seřazené
+  let i = 0, j = 0, t = 0;
+  while (i < a.length && j < b.length) {
+    const lo = Math.max(a[i][0], b[j][0]), hi = Math.min(a[i][1], b[j][1]);
+    if (hi > lo) t += hi - lo;
+    if (a[i][1] < b[j][1]) i++; else j++;
+  }
+  return t;
+}
+// skupiny po k hráčích, kteří spolu byli nejvíc na ledě (hladově)
+export function groupLines(ids, iv, k, max) {
+  const ov = (x, y) => pairOverlap(iv.get(x) || [], iv.get(y) || []);
+  const left = new Set(ids), out = [];
+  while (left.size >= k && out.length < max) {
+    const L = [...left]; let best = null, bv = -1;
+    for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) { const v = ov(L[i], L[j]); if (v > bv) { bv = v; best = [L[i], L[j]]; } }
+    const grp = [...best];
+    while (grp.length < k) {
+      let c = null, cv = -1;
+      for (const x of left) if (!grp.includes(x)) { const v = grp.reduce((t, y) => t + ov(x, y), 0); if (v > cv) { cv = v; c = x; } }
+      grp.push(c);
+    }
+    grp.forEach((x) => left.delete(x));
+    let sum = 0, n = 0; for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) { sum += ov(grp[i], grp[j]); n++; }
+    out.push({ ids: grp, sec: Math.round(sum / n) });
+  }
+  return out.sort((a, b) => b.sec - a.sec);
+}
+export function lineups(box, shifts) {
+  const iv = new Map();
+  for (const s of shifts?.data || []) {
+    if (s.typeCode != null && s.typeCode !== 517) continue;
+    if (!s.startTime || !s.endTime) continue;
+    const base = ((s.period || 1) - 1) * 1200, a = base + toSec(s.startTime), b = base + toSec(s.endTime);
+    if (b > a) (iv.get(s.playerId) || iv.set(s.playerId, []).get(s.playerId)).push([a, b]);
+  }
+  for (const v of iv.values()) v.sort((x, y) => x[0] - y[0]);
+  const out = {}, has = iv.size > 0;
+  for (const side of ["awayTeam", "homeTeam"]) {
+    const abbr = box?.[side]?.abbrev, t = box?.playerByGameStats?.[side] || {};
+    if (!abbr) continue;
+    const nm = (p) => String(p.name?.default || "").replace(/\|/g, "");
+    const F = t.forwards || [], D = t.defense || [];
+    const toiS = (p) => toSec(p.toi);
+    const o = {
+      p: [...F.map((p) => [p, "F"]), ...D.map((p) => [p, "D"])].map(([p, pos]) => `${p.playerId}|${nm(p)}|${pos}|${p.goals || 0}|${p.assists || 0}|${p.plusMinus ?? 0}|${p.toi || ""}`),
+      g: (t.goalies || []).filter((g) => g.toi && g.toi !== "00:00").map((g) => `${g.playerId}|${nm(g)}|${g.saveShotsAgainst || ""}|${g.savePctg ?? ""}|${g.toi || ""}`),
+      f: [], d: [],
+    };
+    if (has) {
+      o.f = groupLines(F.filter((p) => toiS(p) > 0).map((p) => p.playerId), iv, 3, 4).map((x) => `${x.ids.join(",")}|${x.sec}`);
+      o.d = groupLines(D.filter((p) => toiS(p) > 0).map((p) => p.playerId), iv, 2, 3).map((x) => `${x.ids.join(",")}|${x.sec}`);
+    }
+    out[abbr] = o;
+  }
+  return out;
+}
+// výsledky celé sezóny jako text (kvůli vzájemným zápasům a sériím): "20261012|MIN|BUF|3|2|REG"
+export const seasonGames = (finals) => [...finals].sort((a, b) => a.start.localeCompare(b.start))
+  .filter((g) => g.as != null && g.hs != null).map((g) => `${g.date.replaceAll("-", "")}|${g.away}|${g.home}|${g.as}|${g.hs}|${g.last || "REG"}`);

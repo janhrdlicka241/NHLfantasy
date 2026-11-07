@@ -24,6 +24,7 @@ export async function scheduleWeek(date) {
     games: (d.games || []).map((g) => ({
       id: g.id, date: d.date, start: g.startTimeUTC, type: g.gameType, state: g.gameState,
       away: g.awayTeam?.abbrev, home: g.homeTeam?.abbrev,
+      venue: g.venue?.default || "",
       as: g.awayTeam?.score ?? null, hs: g.homeTeam?.score ?? null, last: g.gameOutcome?.lastPeriodType || null,
     })),
   }));
@@ -38,11 +39,21 @@ export const landing = (id) => getJson(`${WEB}/gamecenter/${id}/landing`);
 export async function standings() {
   const j = await getJson(`${WEB}/standings/now`);
   return (j.standings || []).map((t) => ({
-    t: t.teamAbbrev?.default, n: t.teamName?.default || t.placeName?.default || "", conf: t.conferenceName || "", div: t.divisionName || "",
+    t: t.teamAbbrev?.default, n: t.teamName?.default || t.placeName?.default || "", pl: t.placeName?.default || "", cn: t.teamCommonName?.default || "",
+    gf: t.goalFor ?? null, ga: t.goalAgainst ?? null, conf: t.conferenceName || "", div: t.divisionName || "",
     gp: t.gamesPlayed || 0, w: t.wins || 0, l: t.losses || 0, ot: t.otLosses || 0, pts: t.points || 0, gd: t.goalDifferential ?? 0,
     ds: t.divisionSequence || 0, cs: t.conferenceSequence || 0, ls: t.leagueSequence || 0, wc: t.wildcardSequence || 0,
   })).filter((t) => t.t);
 }
+// Přesilovky a oslabení týmů (podle plného názvu – statistiky NHL nemají zkratky)
+export async function teamStats(seasonId) {
+  const exp = encodeURIComponent(`seasonId=${seasonId} and gameTypeId=2`);
+  const j = await getJson(`${STATS}/team/summary?limit=-1&cayenneExp=${exp}`);
+  return (j.data || []).map((t) => ({ name: t.teamFullName, pp: t.powerPlayPct, pk: t.penaltyKillPct }));
+}
+// Střídání hráčů (pro spočítání formací) a videa k zápasu
+export const shiftcharts = (id) => getJson(`${STATS}/shiftcharts?cayenneExp=${encodeURIComponent(`gameId=${id}`)}`);
+export const rightRail = (id) => getJson(`${WEB}/gamecenter/${id}/right-rail`);
 export async function teamGamesPlayed() {
   return Object.fromEntries((await standings()).map((t) => [t.t, t.gp]));
 }

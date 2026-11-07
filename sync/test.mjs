@@ -285,3 +285,18 @@ console.log("✓ začátek sezóny v září");
   assert.equal(tf.TOR, "WO"); assert.equal(tf.BOS, "LW");
   console.log("✓ forma hráčů a týmů");
 }
+
+// formace ze střídání
+{
+  const mk = (id, ranges) => ranges.map(([a, b]) => ({ playerId: id, period: 1, startTime: a, endTime: b, typeCode: 517 }));
+  const L1 = ["0:00", "0:45"], L2 = ["0:45", "1:30"], L3 = ["1:30", "2:00"];
+  const shifts = { data: [...mk(1, [L1]), ...mk(2, [L1]), ...mk(3, [L1]), ...mk(4, [L2]), ...mk(5, [L2]), ...mk(6, [L2]), ...mk(7, [L1, L3]), ...mk(8, [L1, L3]), ...mk(9, [L2]), ...mk(10, [L2])] };
+  const P = (id) => ({ playerId: id, name: { default: "P" + id }, goals: 0, assists: 0, plusMinus: 0, toi: "10:00" });
+  const box = { awayTeam: { abbrev: "TOR" }, homeTeam: { abbrev: "BOS" }, playerByGameStats: { awayTeam: { forwards: [1, 2, 3, 4, 5, 6].map(P), defense: [7, 8, 9, 10].map(P), goalies: [{ playerId: 30, name: { default: "G" }, toi: "60:00", saveShotsAgainst: "29/31", savePctg: 0.935 }] }, homeTeam: {} } };
+  const t = L.lineups(box, shifts).TOR;
+  assert.deepEqual(t.f.map((x) => x.split("|")[0].split(",").map(Number).sort()), [[1, 2, 3], [4, 5, 6]]);
+  assert.deepEqual(t.d.map((x) => x.split("|")[0].split(",").map(Number).sort((a, b) => a - b)), [[7, 8], [9, 10]]);
+  assert.equal(t.d[0].split("|")[1], "75"); assert.equal(t.g.length, 1);
+  assert.equal(L.lineups(box, null).TOR.f.length, 0);
+  console.log("✓ formace ze střídání");
+}

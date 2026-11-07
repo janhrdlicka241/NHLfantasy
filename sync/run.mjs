@@ -74,8 +74,9 @@ async function sync(fs) {
   const needOld = retroOwners.size || redo.size;
   let scanFrom = needOld && RETRO.fromDate < from ? RETRO.fromDate : from;
   const formFrom = addDays(today, -30); // forma hráčů a týmů
-  if (formFrom < scanFrom) scanFrom = formFrom;
-  const games = [], retroGames = [], upcoming = [], finals = [], byDate = {}, formGames = [];
+  const seasonFrom = RETRO.fromDate; // vzájemné zápasy a série týmů za celou sezónu
+  if (seasonFrom < scanFrom) scanFrom = seasonFrom;
+  const games = [], retroGames = [], upcoming = [], finals = [], byDate = {}, formGames = [], seasonList = [];
   for (let d = scanFrom; d <= winTo;) {
     const week = await nhl.scheduleWeek(d);
     if (!week.length) break;
@@ -89,6 +90,7 @@ async function sync(fs) {
       }
       if (day.date >= today && day.date <= winTo && !nhl.isFinal(g) && !upcoming.some((x) => x.id === g.id)) upcoming.push(g);
       if (day.date >= formFrom && day.date <= today && nhl.isFinal(g) && !formGames.some((x) => x.id === g.id)) formGames.push(g);
+      if (day.date <= today && nhl.isFinal(g) && !seasonList.some((x) => x.id === g.id)) seasonList.push(g);
     }
     const next = addDays(week[week.length - 1].date, 1);
     if (next <= d) break;
@@ -152,15 +154,42 @@ async function sync(fs) {
   const days = {};
   for (const g of finals.sort((a, b) => a.start.localeCompare(b.start))) {
     const old = prev.get(g.id);
-    let entry = old && old.sig === sig && old.goals ? old : null;
+    // videa se na NHL objevují se zpožděním – zápas z posledních 2 dní bez videí načteme znovu
+    let entry = old && old.sig === sig && old.goals && (old.vd || g.date < addDays(today, -2)) ? old : null;
     if (!entry) {
       try {
         const [box, land] = cache.get(g.id) || await Promise.all([nhl.boxscore(g.id), nhl.landing(g.id)]);
-        entry = { pl: L.appearances(st, g, L.parseGame(box, land)), goals: L.parseGoals(land), sig };
+        if (!cache.get(g.id)) cache.set(g.id, [box, land]);
+        const goals = L.parseGoals(land);
+        let rc = old?.rc || null;
+        if (!rc) { try { const rr = await nhl.rightRail(g.id); if (rr?.gameVideo?.threeMinRecap) rc = `https://www.nhl.com/gamecenter/${g.id}`; } catch {} }
+        entry = { pl: L.appearances(st, g, L.parseGame(box, land)), goals, sig, rc, vd: !!rc && goals.every((x) => x.v) };
       } catch (e) { console.log(`Zápas ${g.id}: ${e.message}`); entry = { pl: old?.pl || [], goals: old?.goals || [], sig: "" }; }
     }
-    (days[g.date] ||= []).push({ id: g.id, start: g.start, away: g.away, home: g.home, as: g.as, hs: g.hs, last: g.last, pl: entry.pl, goals: entry.goals, sig: entry.sig });
+    (days[g.date] ||= []).push({ id: g.id, start: g.start, away: g.away, home: g.home, as: g.as, hs: g.hs, last: g.last, pl: entry.pl, goals: entry.goals, sig: entry.sig,
+      ...(entry.rc ? { rc: entry.rc } : {}), ...(entry.vd ? { vd: true } : {}) });
   }
+  // sestavy a formace (střídání) zápasů za 7 dní
+  const luSnap = await fs.doc("public/lineups").get();
+  const lu = luSnap.exists ? { g: luSnap.data().g || {} } : { g: {} };
+  const luTodo = finals.filter((g) => { const x = lu.g[String(g.id)]; return !x || (!x.ok && g.date >= addDays(today, -2)); });
+  for (let i = 0; i < luTodo.length; i += 6) {
+    await Promise.all(luTodo.slice(i, i + 6).map(async (g) => {
+      try {
+        const box = cache.get(g.id)?.[0] || await nhl.boxscore(g.id);
+        let sh = null; try { sh = await nhl.shiftcharts(g.id); } catch {}
+        const t = L.lineups(box, sh);
+        lu.g[String(g.id)] = { date: g.date, start: g.start, ok: Object.values(t).some((x) => x.f.length), t };
+      } catch (e) { console.log(`Sestava ${g.id}: ${e.message}`); }
+    }));
+  }
+  lu.g = Object.fromEntries(Object.entries(lu.g).filter(([, x]) => x.date >= winFrom));
+  const lastG = {};
+  for (const [id, x] of Object.entries(lu.g).sort((a, b) => a[1].start.localeCompare(b[1].start))) for (const tm of Object.keys(x.t || {})) lastG[tm] = id;
+  console.log(`Sestavy: nově ${luTodo.length}, s formacemi ${Object.values(lu.g).filter((x) => x.ok).length}/${Object.keys(lu.g).length}`);
+  let ts = {};
+  try { const byName = new Map((await nhl.teamStats(season)).map((x) => [String(x.name).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(), x]));
+    for (const t of table) { const x = byName.get(String(t.n).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()); if (x) ts[t.t] = { pp: x.pp, pk: x.pk }; } } catch (e) { console.log("Statistiky týmů:", e.message); }
   const all = Object.values(days).flat();
   console.log(`Zápasy za 7 dní: ${all.length}, gólů: ${all.reduce((t, g) => t + (g.goals?.length || 0), 0)}, nástupů našich hráčů: ${all.reduce((t, g) => t + (g.pl?.length || 0), 0)}`);
   const extra = {
@@ -168,7 +197,8 @@ async function sync(fs) {
     "public/pool": { ...L.encodePool(pool), updated: now },
     "public/upcoming": { games: upcoming.sort((a, b) => a.start.localeCompare(b.start)), updated: now },
     "public/results": { days, updated: now },
-    "public/standings": { teams: table, form: L.teamForm(formGames), updated: now },
+    "public/standings": { teams: table, form: L.teamForm(formGames), games: L.seasonGames(seasonList), ts, updated: now },
+    "public/lineups": { g: lu.g, last: lastG, updated: now },
     "public/form": { v: 1, p: form.p, games: form.games, inj: (espn || []).map((x) => `${x.name}|${x.status}`), updated: now },
   };
   if (DRY) { console.log("DRY – neukládám.", [...st.dirty], st.feed); return; }
