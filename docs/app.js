@@ -10,7 +10,7 @@ const norm = (o) => Array.isArray(o) ? o.map(norm) : o && typeof o === "object" 
   ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, norm(v)])) : iso(o);
 
 let raf = 0;
-const S = { league: null, rosters: {}, rosterPicks: {}, months: {}, injuries: [], picks: [], feed: [], pool: null, upcoming: null, results: null, meta: null, standings: null, form: null };
+const S = { league: null, rosters: {}, rosterPicks: {}, months: {}, injuries: [], picks: [], feed: [], pool: null, upcoming: null, results: null, meta: null, standings: null, form: null, lineups: null };
 const store = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 const keep = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 const U = { me: store("fnhl-me"), month: null, tab: "tabulka", openT: new Set(), openM: new Set(), q: {}, sel: {}, slotOpen: null, pickOpen: null, sortK: "pts", onlyFree: false, openInj: new Set(), sortG: "w", allG: false, stat: "hr", stdV: "div", formN: 5, formFree: false, volPos: "F", volSort: "s" };
@@ -22,7 +22,7 @@ const one = (path, key) => onSnapshot(doc(db, path), (d) => { S[key] = d.exists(
 const map = (col, key) => onSnapshot(collection(db, col), (q) => { S[key] = Object.fromEntries(q.docs.map((d) => [d.id, norm(d.data())])); render(); }, err);
 const list = (qq, key) => onSnapshot(qq, (q) => { S[key] = q.docs.map((d) => ({ ...norm(d.data()), id: d.id })); render(); }, err);
 function err(e) { console.error(e); document.getElementById("view").innerHTML = `<div class="panel empty">Nepodařilo se načíst data (${V.esc(e.code || e.message)}). Zkontroluj firebase-config.js a pravidla Firestore.</div>`; }
-one("config/league", "league"); one("public/pool", "pool"); one("public/upcoming", "upcoming"); one("public/results", "results"); one("meta/state", "meta"); one("public/standings", "standings"); one("public/form", "form");
+one("config/league", "league"); one("public/pool", "pool"); one("public/upcoming", "upcoming"); one("public/results", "results"); one("meta/state", "meta"); one("public/standings", "standings"); one("public/form", "form"); one("public/lineups", "lineups");
 map("rosters", "rosters"); map("rosterPicks", "rosterPicks"); map("months", "months");
 list(collection(db, "injuries"), "injuries"); // všechna – aktivní i ukončená (kvůli kontrole zápasů)
 list(query(collection(db, "picks"), where("status", "==", "pending")), "picks");
@@ -97,6 +97,8 @@ document.getElementById("view").addEventListener("click", async (e) => {
   else if (a === "allg") U.allG = !U.allG;
   else if (a === "stat") U.stat = t.dataset.k;
   else if (a === "vyuk") U.vyuK = t.dataset.k;
+  else if (a === "gopen") { if (e.target.closest("a")) return; (U.openG ||= new Set()); const k = t.dataset.id; U.openG.has(k) ? U.openG.delete(k) : U.openG.add(k); }
+  else if (a === "lut") { (U.luT ||= {})[t.dataset.id] = t.dataset.k; }
   else if (a === "oopen") { (U.openO ||= new Set()); const k = t.dataset.k; U.openO.has(k) ? U.openO.delete(k) : U.openO.add(k); }
   else if (a === "stdv") U.stdV = t.dataset.k;
   else if (a === "formn") U.formN = +t.dataset.k;
