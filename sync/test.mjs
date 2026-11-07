@@ -300,3 +300,13 @@ console.log("✓ začátek sezóny v září");
   assert.equal(L.lineups(box, null).TOR.f.length, 0);
   console.log("✓ formace ze střídání");
 }
+
+// statistiky zápasu a hvězdy
+{
+  const gs = L.gameStats({ teamGameStats: [{ category: "sog", awayValue: 34, homeValue: 27 }, { category: "powerPlay", awayValue: "1/3", homeValue: "0/2" }, { category: "faceoffWinningPctg", awayValue: 0.54, homeValue: 0.46 }],
+    shotsByPeriod: [{ periodDescriptor: { number: 1 }, away: 12, home: 8 }, { periodDescriptor: { number: 2 }, away: 10, home: 9 }] });
+  assert.deepEqual(gs, { sog: "34|27", pp: "1/3|0/2", fo: "0.54|0.46", sbp: "12-10|8-9" });
+  assert.deepEqual(L.threeStars({ summary: { threeStars: [{ star: 2, playerId: 2, name: { default: "B" }, teamAbbrev: "TOR" }, { star: 1, playerId: 1, name: "A", teamAbbrev: { default: "BUF" } }] } }),
+    [{ id: 1, n: "A", t: "BUF" }, { id: 2, n: "B", t: "TOR" }]);
+  console.log("✓ statistiky zápasu a hvězdy");
+}

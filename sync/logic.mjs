@@ -664,3 +664,17 @@ export function lineups(box, shifts) {
 // výsledky celé sezóny jako text (kvůli vzájemným zápasům a sériím): "20261012|MIN|BUF|3|2|REG"
 export const seasonGames = (finals) => [...finals].sort((a, b) => a.start.localeCompare(b.start))
   .filter((g) => g.as != null && g.hs != null).map((g) => `${g.date.replaceAll("-", "")}|${g.away}|${g.home}|${g.as}|${g.hs}|${g.last || "REG"}`);
+
+// --- Statistiky zápasu (right-rail) a 3 hvězdy (landing) ---
+// { sog: "34|27", sbp: "12-10-12|8-9-10", pp: "1/3|0/2", fo: "0.54|0.46", pim, hits, blk, gv, tk }
+export function gameStats(rr) {
+  const out = {}, K = { sog: "sog", powerPlay: "pp", faceoffWinningPctg: "fo", pim: "pim", hits: "hits", blockedShots: "blk", giveaways: "gv", takeaways: "tk" };
+  for (const x of rr?.teamGameStats || []) { const k = K[x.category]; if (k) out[k] = `${x.awayValue ?? ""}|${x.homeValue ?? ""}`; }
+  const sp = (rr?.shotsByPeriod || []).filter((p) => (p.periodDescriptor?.periodType || "REG") !== "SO");
+  if (sp.length) out.sbp = `${sp.map((p) => p.away ?? 0).join("-")}|${sp.map((p) => p.home ?? 0).join("-")}`;
+  return out;
+}
+export function threeStars(land) {
+  return (land?.summary?.threeStars || []).sort((a, b) => (a.star || 0) - (b.star || 0)).slice(0, 3)
+    .map((s) => ({ id: s.playerId, n: s.name?.default || s.name || s.lastName?.default || "", t: s.teamAbbrev?.default || s.teamAbbrev || "" }));
+}

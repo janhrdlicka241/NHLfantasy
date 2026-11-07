@@ -155,19 +155,19 @@ async function sync(fs) {
   for (const g of finals.sort((a, b) => a.start.localeCompare(b.start))) {
     const old = prev.get(g.id);
     // videa se na NHL objevují se zpožděním – zápas z posledních 2 dní bez videí načteme znovu
-    let entry = old && old.sig === sig && old.goals && (old.vd || g.date < addDays(today, -2)) ? old : null;
+    let entry = old && old.sig === sig && old.goals && old.gs !== undefined && (old.vd || g.date < addDays(today, -2)) ? old : null;
     if (!entry) {
       try {
         const [box, land] = cache.get(g.id) || await Promise.all([nhl.boxscore(g.id), nhl.landing(g.id)]);
         if (!cache.get(g.id)) cache.set(g.id, [box, land]);
         const goals = L.parseGoals(land);
-        let rc = old?.rc || null;
-        if (!rc) { try { const rr = await nhl.rightRail(g.id); if (rr?.gameVideo?.threeMinRecap) rc = `https://www.nhl.com/gamecenter/${g.id}`; } catch {} }
-        entry = { pl: L.appearances(st, g, L.parseGame(box, land)), goals, sig, rc, vd: !!rc && goals.every((x) => x.v) };
+        let rc = old?.rc || null, gs;
+        try { const rr = await nhl.rightRail(g.id); if (rr?.gameVideo?.threeMinRecap) rc = `https://www.nhl.com/gamecenter/${g.id}`; gs = L.gameStats(rr); } catch {}
+        entry = { pl: L.appearances(st, g, L.parseGame(box, land)), goals, sig, rc, vd: !!rc && goals.every((x) => x.v), gs, stars: L.threeStars(land) };
       } catch (e) { console.log(`Zápas ${g.id}: ${e.message}`); entry = { pl: old?.pl || [], goals: old?.goals || [], sig: "" }; }
     }
     (days[g.date] ||= []).push({ id: g.id, start: g.start, away: g.away, home: g.home, as: g.as, hs: g.hs, last: g.last, pl: entry.pl, goals: entry.goals, sig: entry.sig,
-      ...(entry.rc ? { rc: entry.rc } : {}), ...(entry.vd ? { vd: true } : {}) });
+      ...(entry.rc ? { rc: entry.rc } : {}), ...(entry.vd ? { vd: true } : {}), ...(entry.gs !== undefined ? { gs: entry.gs } : {}), ...(entry.stars?.length ? { stars: entry.stars } : {}) });
   }
   // sestavy a formace (střídání) zápasů za 7 dní
   const luSnap = await fs.doc("public/lineups").get();
