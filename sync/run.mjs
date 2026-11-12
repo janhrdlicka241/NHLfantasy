@@ -1,7 +1,7 @@
 // Spouští GitHub Actions každou hodinu.  node run.mjs sync | seed
 import * as nhl from "./nhl.mjs";
 import * as L from "./logic.mjs";
-import { db, load, save } from "./store.mjs";
+import { db, load, save, tipsSince } from "./store.mjs";
 import { readFileSync } from "node:fs";
 
 const mode = process.argv[2] || "sync";
@@ -190,6 +190,14 @@ async function sync(fs) {
   let ts = {};
   try { const byName = new Map((await nhl.teamStats(season)).map((x) => [String(x.name).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(), x]));
     for (const t of table) { const x = byName.get(String(t.n).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()); if (x) ts[t.t] = { pp: x.pp, pk: x.pk }; } } catch (e) { console.log("Statistiky týmů:", e.message); }
+  // Bobovka – vyhodnocení tipů odehraných zápasů
+  let bob = null;
+  try {
+    const bSnap = await fs.doc("bobovka/state").get();
+    const tips = await tipsSince(fs, addDays(today, -4) + "T00:00:00Z");
+    bob = L.settleBobovka(bSnap.exists ? bSnap.data() : {}, tips, seasonList);
+    console.log(`Bobovka: tipů ${tips.length}, vyhodnocených zápasů ${Object.keys(bob.games).length}, jackpot ${bob.jackpot} Kč`);
+  } catch (e) { console.log("Bobovka:", e.message); }
   const all = Object.values(days).flat();
   console.log(`Zápasy za 7 dní: ${all.length}, gólů: ${all.reduce((t, g) => t + (g.goals?.length || 0), 0)}, nástupů našich hráčů: ${all.reduce((t, g) => t + (g.pl?.length || 0), 0)}`);
   const extra = {
@@ -199,6 +207,7 @@ async function sync(fs) {
     "public/results": { days, updated: now },
     "public/standings": { teams: table, form: L.teamForm(formGames), games: L.seasonGames(seasonList), ts, updated: now },
     "public/lineups": { g: lu.g, last: lastG, updated: now },
+    ...(bob ? { "bobovka/state": { ...bob, updated: now } } : {}),
     "public/form": { v: 1, p: form.p, games: form.games, inj: (espn || []).map((x) => `${x.name}|${x.status}`), updated: now },
   };
   if (DRY) { console.log("DRY – neukládám.", [...st.dirty], st.feed); return; }

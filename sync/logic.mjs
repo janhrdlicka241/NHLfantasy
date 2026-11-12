@@ -678,3 +678,52 @@ export function threeStars(land) {
   return (land?.summary?.threeStars || []).sort((a, b) => (a.star || 0) - (b.star || 0)).slice(0, 3)
     .map((s) => ({ id: s.playerId, n: s.name?.default || s.name || s.lastName?.default || "", t: s.teamAbbrev?.default || s.teamAbbrev || "" }));
 }
+
+// --- Bobovka: tipovačka na přesný výsledek po 60 minutách, 10 Kč za tip, nevyhrané banky do jackpotu ---
+export const BOB_STAKE = 10;
+// výsledek po 60 minutách: po prodloužení / nájezdech je to remíza na skóre poraženého
+export function regScore(g) {
+  if (g.as == null || g.hs == null) return null;
+  return g.last && g.last !== "REG" ? [Math.min(g.as, g.hs), Math.min(g.as, g.hs)] : [g.as, g.hs];
+}
+const bobMonth = (date) => { const k = date.slice(0, 7); return k.endsWith("-09") ? k.slice(0, 5) + "10" : k; };
+// prev: dosavadní stav (games = vyhodnocené zápasy s tipy), tips: tipy z Firestore, finals: odehrané zápasy
+export function settleBobovka(prev, tips, finals) {
+  const games = { ...(prev?.games || {}) };
+  const byGame = new Map();
+  for (const t of tips) {
+    if (!t.owner || !Number.isInteger(t.a) || !Number.isInteger(t.h)) continue;
+    (byGame.get(String(t.gameId)) || byGame.set(String(t.gameId), []).get(String(t.gameId))).push(t);
+  }
+  for (const g of finals) {
+    const id = String(g.id), list = byGame.get(id);
+    if (games[id] || !list) continue;
+    const r = regScore(g); if (!r) continue;
+    const valid = list.filter((t) => !t.ts || t.ts < g.start); // tip musí přijít před začátkem
+    if (!valid.length) continue;
+    games[id] = { d: g.date, s: g.start, m: `${g.away}-${g.home}`, r: `${r[0]}:${r[1]}`,
+      ...(g.last && g.last !== "REG" ? { f: `${g.as}:${g.hs} ${g.last === "OT" ? "pp" : "sn"}` } : {}),
+      t: Object.fromEntries(valid.map((t) => [t.owner, `${t.a}:${t.h}`])) };
+  }
+  // účetnictví přes všechny zápasy v pořadí podle začátku
+  let jp = {}; // jackpot: majitel -> Kč, které tam vložil
+  const months = {}, M = (k, o) => ((months[k] ||= { owners: {} }).owners[o] ||= { tips: 0, hits: 0, staked: 0, won: 0 });
+  for (const [id, g] of Object.entries(games).sort((a, b) => a[1].s.localeCompare(b[1].s) || a[0].localeCompare(b[0]))) {
+    const mk = bobMonth(g.d), owners = Object.keys(g.t), hit = owners.filter((o) => g.t[o] === g.r);
+    owners.forEach((o) => { M(mk, o).tips++; });
+    g.bank = owners.length * BOB_STAKE; g.hit = hit; delete g.w; delete g.jp; delete g.toJp;
+    if (!hit.length) { owners.forEach((o) => { jp[o] = (jp[o] || 0) + BOB_STAKE; }); g.toJp = g.bank; continue; }
+    const jpSum = Object.values(jp).reduce((t, x) => t + x, 0), pot = g.bank + jpSum;
+    const share = Math.floor((pot / hit.length) * 100) / 100;
+    // náklady se naúčtují až teď, kdy peníze někdo vyhrál
+    owners.forEach((o) => { M(mk, o).staked += BOB_STAKE; });
+    for (const [o, x] of Object.entries(jp)) M(mk, o).staked += x;
+    // výhra se dělí rovným dílem, haléřový zbytek dostane poslední výherce
+    hit.forEach((o, i) => { const m = M(mk, o); m.hits++; m.won += i < hit.length - 1 ? share : Math.round((pot - share * (hit.length - 1)) * 100) / 100; });
+    g.w = share; if (jpSum) g.jp = jpSum;
+    jp = {};
+  }
+  for (const m of Object.values(months)) for (const x of Object.values(m.owners)) { x.won = Math.round(x.won * 100) / 100; x.staked = Math.round(x.staked * 100) / 100; }
+  const jackpot = Object.values(jp).reduce((t, x) => t + x, 0);
+  return { games, months, jackpot, jpBy: jp };
+}

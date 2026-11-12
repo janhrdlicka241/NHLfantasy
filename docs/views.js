@@ -361,7 +361,8 @@ export function vVyuct(S, U) {
         <div class="tname">${p.length ? "platí: " + p.map((q) => `${esc(q.to)} ${q.d}×${kc} = ${q.d * kc} Kč`).join(" · ") : "nikomu neplatí"}</div>
         <div class="tname">dostane: ${fmtKc(inn)} · platí: ${fmtKc(out)}</div></div><div class="kc ${balCls(x.bal)}">${signKc(x.bal)}</div></div>`; }).join("")}</div>
     <div class="panel scroll" style="margin-top:12px"><table class="matrix"><thead><tr><th>platí ↓ / dostává →</th>${s.map((y) => `<th class="num">${esc(y.owner)}</th>`).join("")}</tr></thead>
-    <tbody>${s.map((x) => `<tr><td class="own">${esc(x.owner)}</td>${s.map((y) => `<td class="num">${y.pts > x.pts ? (y.pts - x.pts) * kc : '<span class="tname">·</span>'}</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>`;
+    <tbody>${s.map((x) => `<tr><td class="own">${esc(x.owner)}</td>${s.map((y) => `<td class="num">${y.pts > x.pts ? (y.pts - x.pts) * kc : '<span class="tname">·</span>'}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+    ${bobSettle(S, k)}</div>`;
   };
   // přehled sezóny – měsíce vedle sebe
   const asc = [...keys].reverse(), owners = S.league?.owners || [], kcMode = U.vyuK === "k";
@@ -657,4 +658,73 @@ export function vCard(S, id) {
     ${ng ? `<div class="tname">Další zápas: ${esc(ng)}</div>` : ""}
     <a class="btn" href="https://www.nhl.com/player/${id}" target="_blank" rel="noopener" style="text-decoration:none;justify-self:start">Profil na nhl.com ↗</a>
   </div>`;
+}
+
+// --- Bobovka ---
+const tipWord = (n) => `${n} ${n === 1 ? "tip" : n >= 2 && n <= 4 ? "tipy" : "tipů"}`;
+const kcB = (n) => `${Math.round(n * 100) / 100}`.replace(".", ",") + " Kč";
+const sKcB = (n) => (n > 0.004 ? "+" : n < -0.004 ? "−" : "") + kcB(Math.abs(n));
+function bobRows(S, mk) {
+  const m = S.bob?.months?.[mk]?.owners || {};
+  return (S.league?.owners || []).map((o) => { const x = m[o] || { tips: 0, hits: 0, staked: 0, won: 0 }; return { o, ...x, bal: Math.round((x.won - x.staked) * 100) / 100 }; })
+    .sort((a, b) => b.bal - a.bal || b.hits - a.hits);
+}
+// kdo komu: dlužníci platí věřitelům (co nejméně převodů)
+function netting(rows) {
+  const cr = rows.filter((r) => r.bal > 0.004).map((r) => ({ o: r.o, v: r.bal })), db = rows.filter((r) => r.bal < -0.004).map((r) => ({ o: r.o, v: -r.bal }));
+  const out = [];
+  for (const d of db) for (const c of cr) { if (d.v < 0.005) break; const x = Math.min(d.v, c.v); if (x < 0.005) continue; out.push({ from: d.o, to: c.o, v: Math.round(x * 100) / 100 }); d.v -= x; c.v -= x; }
+  return out;
+}
+function bobSettle(S, mk, title = "Bobovka") {
+  if (!S.bob?.months?.[mk]) return "";
+  const rows = bobRows(S, mk), tr = netting(rows), paid = S.bpaid?.[mk]?.paid;
+  return `<h3 class="mh">${title}</h3><div class="panel" style="padding:10px 14px">
+    ${tr.length ? tr.map((t) => `<div class="btr">${ownChip(S, t.from)} → ${ownChip(S, t.to)} <b>${kcB(t.v)}</b></div>`).join("") : `<div class="tname">Nikdo nikomu nic.</div>`}
+    <div class="acts" style="margin-top:8px"><button class="btn ${paid ? "" : "pri"}" data-act="bpaid" data-m="${mk}">${paid ? "✓ Bobovka vyplacena" : "Označit Bobovku jako vyplacenou"}</button></div></div>`;
+}
+export function vBobovka(S, U) {
+  const sub = U.bsub || "tip";
+  const seg = `<div class="seg">${[["tip", "Tipovat"], ["res", "Výsledky"], ["tab", "Tabulka"]].map(([k, l]) => `<button class="btn ${sub === k ? "pri" : ""}" data-act="bsub" data-k="${k}">${l}</button>`).join("")}</div>`;
+  const head = `<div class="dayhead"><h2>Bobovka</h2><span class="tname">přesný výsledek po 60 min · 10 Kč za tip</span></div>${seg}`;
+  const jp = S.bob?.jackpot || 0;
+  const tipsOf = (gid) => (S.tips || []).filter((t) => String(t.gameId) === String(gid));
+  const chips = (g, tips, r) => `<div class="tips">${tips.map(([o, v]) => `<span class="${r && v === r ? "hit" : ""}"><i class="dot" style="background:${col(S, o)}"></i>${esc(o)} ${v}${r && v === r ? " ✓" : ""}</span>`).join("")}</div>`;
+  if (sub === "tip") {
+    const now = new Date().toISOString(), up = (S.upcoming?.games || []).filter((g) => g.start > now);
+    const groups = {}; for (const g of up) (groups[fDay(new Date(g.start))] ||= []).push(g);
+    const done = new Set(Object.keys(S.bob?.games || {}));
+    const live = (S.upcoming?.games || []).filter((g) => g.start <= now && !done.has(String(g.id)) && tipsOf(g.id).length);
+    return `${head}
+    <div class="jp"><div><small>Jackpot</small><div style="font-weight:700">${jp ? "bere první přesná trefa" : "zatím prázdný – nevyhrané banky se sčítají sem"}</div></div><b>${kcB(jp)}</b></div>
+    ${live.length ? `<h3 class="mh">Rozehrané – tipy všech</h3>${live.map((g) => `<div class="panel tg"><div class="tr"><span class="t">${g.away}</span><span class="tname">@</span><span class="t">${g.home}</span><span class="bank"><b>${kcB(tipsOf(g.id).length * 10)}</b>${tipWord(tipsOf(g.id).length)}</span></div>${chips(g, tipsOf(g.id).map((t) => [t.owner, `${t.a}:${t.h}`]))}</div>`).join("")}` : ""}
+    ${Object.keys(groups).length ? Object.entries(groups).map(([day, gs]) => `<h3 class="mh">${day}</h3>${gs.map((g) => {
+      const ts = tipsOf(g.id), my = ts.find((t) => t.owner === U.me), dr = U.tipDraft?.[g.id] || {};
+      const va = dr.a ?? (my ? my.a : ""), vh = dr.h ?? (my ? my.h : "");
+      return `<div class="panel tg" data-gid="${g.id}" data-start="${g.start}"><div class="tr"><span class="tm">${fTime(new Date(g.start))}</span><span class="t">${g.away}</span>
+        <span class="sc"><input id="tip-${g.id}-a" class="tipin ${my ? "f" : ""}" data-s="a" inputmode="numeric" maxlength="2" value="${esc(va)}" aria-label="góly ${g.away}"> : <input id="tip-${g.id}-h" class="tipin ${my ? "f" : ""}" data-s="h" inputmode="numeric" maxlength="2" value="${esc(vh)}" aria-label="góly ${g.home}"></span>
+        <span class="t">${g.home}</span><span class="bank"><b>${kcB(ts.length * 10)}</b>${tipWord(ts.length)}</span></div>
+        ${my ? `<div class="saved">✓ tip uložen · do začátku jde změnit</div>` : ""}</div>`; }).join("")}`).join("")
+      : `<div class="panel empty">Žádné zápasy k tipování v příštích 7 dnech.</div>`}
+    <p class="note">Tip se uloží sám, když vyplníš obě čísla. Tipy ostatních uvidíš po začátku zápasu. Netipnutý zápas tě nic nestojí.</p>`;
+  }
+  if (sub === "res") {
+    const gs = Object.entries(S.bob?.games || {}).sort((a, b) => b[1].s.localeCompare(a[1].s)).slice(0, 40);
+    if (!gs.length) return `${head}<div class="panel empty">Zatím žádný vyhodnocený zápas.</div>`;
+    const groups = {}; for (const [id, g] of gs) (groups[g.d] ||= []).push(g);
+    return `${head}${Object.entries(groups).map(([d, list]) => `<h3 class="mh">${dayLabel(d)}</h3>${list.map((g) => { const [a, h] = g.m.split("-");
+      return `<div class="panel tg"><div class="tr"><span class="t">${a}</span><span class="res">${g.r.replace(":", " : ")}${g.f ? ` <small>(konečně ${esc(g.f)})</small>` : ""}</span><span class="t">${h}</span>
+        <span class="bank ${g.hit?.length ? "" : "roll"}"><b>${kcB(g.bank)}</b>${g.hit?.length ? tipWord(Object.keys(g.t).length) : "nikdo → jackpot"}</span></div>
+        ${chips(g, Object.entries(g.t).sort(), g.r)}
+        ${g.hit?.length ? `<div class="win">🏆 ${g.hit.map((o) => esc(o)).join(" a ")} ${g.hit.length > 1 ? "berou po" : "bere"} <b>${kcB(g.w)}</b>${g.jp ? ` (včetně jackpotu ${kcB(g.jp)})` : ""}</div>` : ""}</div>`; }).join("")}`).join("")}`;
+  }
+  const ms = Object.keys(S.bob?.months || {}).sort(), cur = nyDate().slice(0, 7);
+  const mk = U.bmonth && ms.includes(U.bmonth) ? U.bmonth : ms.includes(cur) ? cur : ms[ms.length - 1];
+  if (!mk) return `${head}<div class="panel empty">Tabulka se ukáže po prvním vyhodnoceném zápase.</div>`;
+  const rows = bobRows(S, mk), i = ms.indexOf(mk);
+  return `${head}<div class="seg">${ms.map((k) => `<button class="btn ${k === mk ? "pri" : ""}" data-act="bmonth" data-k="${k}">${monthLabel(k)}</button>`).join("")}</div>
+  <div class="panel scroll"><table><thead><tr><th></th><th>Hráč</th><th class="num">Tipů</th><th class="num">Trefa</th><th class="num">Vsadil</th><th class="num">Vyhrál</th><th class="num">Kč</th></tr></thead><tbody>
+  ${rows.map((r, j) => `<tr><td class="rank">${j + 1}</td><td>${ownChip(S, r.o)}</td><td class="num">${r.tips}</td><td class="num"><b>${r.hits}</b></td><td class="num">${kcB(r.staked).replace(" Kč", "")}</td><td class="num">${kcB(r.won).replace(" Kč", "")}</td><td class="num bal ${r.bal > 0 ? "plus" : r.bal < 0 ? "owe" : ""}"><b>${sKcB(r.bal).replace(" Kč", "")}</b></td></tr>`).join("")}</tbody></table></div>
+  <p class="note">Vsadil = tipy, jejichž peníze už někdo vyhrál (i přes jackpot). Peníze v jackpotu (${kcB(jp)}) se naúčtují, až ho někdo trefí.</p>
+  ${bobSettle(S, mk, "Kdo komu platí")}`;
 }

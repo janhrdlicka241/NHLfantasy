@@ -36,6 +36,12 @@ export async function load(fs) {
   };
 }
 
+// tipy Bobovky na zápasy od daného času (ISO)
+export async function tipsSince(fs, isoFrom) {
+  const snap = await fs.collection("tips").where("start", ">=", isoFrom).get();
+  return snap.docs.map((d) => clean({ ...d.data(), id: d.id }));
+}
+
 export async function save(fs, st, extra) {
   const writes = [];
   for (const path of st.dirty) {

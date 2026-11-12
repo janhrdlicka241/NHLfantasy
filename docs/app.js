@@ -10,11 +10,11 @@ const norm = (o) => Array.isArray(o) ? o.map(norm) : o && typeof o === "object" 
   ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, norm(v)])) : iso(o);
 
 let raf = 0;
-const S = { league: null, rosters: {}, rosterPicks: {}, months: {}, injuries: [], picks: [], feed: [], pool: null, upcoming: null, results: null, meta: null, standings: null, form: null, lineups: null };
+const S = { league: null, rosters: {}, rosterPicks: {}, months: {}, injuries: [], picks: [], feed: [], pool: null, upcoming: null, results: null, meta: null, standings: null, form: null, lineups: null, bob: null, bpaid: {}, tips: [] };
 const store = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 const keep = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 const U = { me: store("fnhl-me"), month: null, tab: "tabulka", openT: new Set(), openM: new Set(), q: {}, sel: {}, slotOpen: null, pickOpen: null, sortK: "pts", onlyFree: false, openInj: new Set(), sortG: "w", allG: false, stat: "hr", stdV: "div", formN: 5, formFree: false, volPos: "F", volSort: "s" };
-const TABS = ["tabulka", "den", "tymy", "zraneni", "nhl", "vyuctovani"];
+const TABS = ["tabulka", "den", "bobovka", "tymy", "zraneni", "nhl", "vyuctovani"];
 const h = (location.hash || "").slice(1); if (TABS.includes(h)) U.tab = h;
 
 // --- živá data ---
@@ -22,7 +22,8 @@ const one = (path, key) => onSnapshot(doc(db, path), (d) => { S[key] = d.exists(
 const map = (col, key) => onSnapshot(collection(db, col), (q) => { S[key] = Object.fromEntries(q.docs.map((d) => [d.id, norm(d.data())])); render(); }, err);
 const list = (qq, key) => onSnapshot(qq, (q) => { S[key] = q.docs.map((d) => ({ ...norm(d.data()), id: d.id })); render(); }, err);
 function err(e) { console.error(e); document.getElementById("view").innerHTML = `<div class="panel empty">Nepodařilo se načíst data (${V.esc(e.code || e.message)}). Zkontroluj firebase-config.js a pravidla Firestore.</div>`; }
-one("config/league", "league"); one("public/pool", "pool"); one("public/upcoming", "upcoming"); one("public/results", "results"); one("meta/state", "meta"); one("public/standings", "standings"); one("public/form", "form"); one("public/lineups", "lineups");
+one("config/league", "league"); one("public/pool", "pool"); one("public/upcoming", "upcoming"); one("public/results", "results"); one("meta/state", "meta"); one("public/standings", "standings"); one("public/form", "form"); one("public/lineups", "lineups"); one("bobovka/state", "bob"); map("bobovkaPaid", "bpaid");
+list(query(collection(db, "tips"), where("start", ">=", new Date(Date.now() - 4 * 864e5).toISOString())), "tips");
 map("rosters", "rosters"); map("rosterPicks", "rosterPicks"); map("months", "months");
 list(collection(db, "injuries"), "injuries"); // všechna – aktivní i ukončená (kvůli kontrole zápasů)
 list(query(collection(db, "picks"), where("status", "==", "pending")), "picks");
@@ -52,7 +53,7 @@ function draw() {
   bd.textContent = mine || unread || ""; bd.classList.toggle("hot", mine > 0);
   // zachovat fokus ve vyhledávání
   const f = document.activeElement, fid = f?.id, pos = f?.selectionStart;
-  const view = { tabulka: V.vTabulka, den: V.vDen, tymy: V.vTymy, zraneni: V.vZraneni, nhl: V.vNhl, vyuctovani: V.vVyuct }[U.tab];
+  const view = { tabulka: V.vTabulka, den: V.vDen, bobovka: V.vBobovka, tymy: V.vTymy, zraneni: V.vZraneni, nhl: V.vNhl, vyuctovani: V.vVyuct }[U.tab];
   document.getElementById("view").innerHTML = S.league ? view(S, U) : `<div class="panel empty">Liga ještě není založená – spusť na GitHubu workflow „NHL data“ v režimu seed.</div>`;
   if (fid) { const n = document.getElementById(fid); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch {} } }
   document.getElementById("pcardOv").innerHTML = U.card ? V.vCard(S, U.card) : "";
@@ -98,6 +99,9 @@ document.getElementById("view").addEventListener("click", async (e) => {
   else if (a === "allg") U.allG = !U.allG;
   else if (a === "stat") U.stat = t.dataset.k;
   else if (a === "vyuk") U.vyuK = t.dataset.k;
+  else if (a === "bsub") U.bsub = t.dataset.k;
+  else if (a === "bmonth") U.bmonth = t.dataset.k;
+  else if (a === "bpaid") { const k = t.dataset.m; try { await setDoc(doc(db, "bobovkaPaid", k), { paid: !S.bpaid?.[k]?.paid }); } catch (er) { alert2(er.message); } return; }
   else if (a === "pcard") { e.stopPropagation(); U.card = +t.dataset.id; }
   else if (a === "nat") U.nat = t.dataset.k;
   else if (a === "rook") U.rook = t.checked;
@@ -133,11 +137,24 @@ document.getElementById("view").addEventListener("click", async (e) => {
   else return;
   render();
 });
-document.getElementById("view").addEventListener("change", (e) => { const t = e.target; if (t.dataset.act === "natsel") { U.nat = t.value; render(); } });
+document.getElementById("view").addEventListener("change", (e) => { const t = e.target; if (t.dataset.act === "natsel") { U.nat = t.value; render(); } if (t.classList.contains("tipin")) saveTip(t); });
+// Bobovka – uložení tipu, když jsou vyplněná obě čísla
+async function saveTip(inp) {
+  const box = inp.closest("[data-gid]"); if (!box || !U.me) return;
+  const [a, h] = [...box.querySelectorAll(".tipin")].map((x) => x.value.trim());
+  if (a === "" || h === "") return;
+  const A = Number(a), H = Number(h);
+  if (!Number.isInteger(A) || !Number.isInteger(H) || A < 0 || H < 0 || A > 20 || H > 20) { alert2("Tip musí být celá čísla 0–20."); return; }
+  if (box.dataset.start <= new Date().toISOString()) { alert2("Zápas už začal, tip nejde uložit."); return; }
+  const gid = Number(box.dataset.gid);
+  try { await setDoc(doc(db, "tips", `${gid}_${U.me}`), { gameId: gid, owner: U.me, a: A, h: H, start: box.dataset.start, ts: serverTimestamp() }); }
+  catch (er) { alert2(`Tip se neuložil: ${er.message}`); }
+}
 document.getElementById("pcardOv").addEventListener("click", (e) => {
   const t = e.target.closest("[data-act]");
   if (e.target.id === "pcardOv" || t?.dataset.act === "pclose") { U.card = null; render(); }
 });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && U.card) { U.card = null; render(); } });
-document.getElementById("view").addEventListener("input", (e) => { const t = e.target; if (t.classList.contains("srch")) { U.q[t.dataset.ctx] = t.value; render(); } });
+document.getElementById("view").addEventListener("input", (e) => { const t = e.target;
+  if (t.classList.contains("tipin")) { const gid = t.closest("[data-gid]")?.dataset.gid; ((U.tipDraft ||= {})[gid] ||= {})[t.dataset.s] = t.value; return; } if (t.classList.contains("srch")) { U.q[t.dataset.ctx] = t.value; render(); } });
 render();

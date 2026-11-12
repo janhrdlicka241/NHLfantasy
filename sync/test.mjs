@@ -310,3 +310,25 @@ console.log("✓ začátek sezóny v září");
     [{ id: 1, n: "A", t: "BUF" }, { id: 2, n: "B", t: "TOR" }]);
   console.log("✓ statistiky zápasu a hvězdy");
 }
+
+// Bobovka – jackpot a účtování
+{
+  const fin = [
+    { id: 1, date: "2026-11-10", start: "2026-11-11T00:00:00Z", away: "TOR", home: "BUF", as: 3, hs: 2, last: "OT" }, // po 60 min 2:2
+    { id: 2, date: "2026-11-11", start: "2026-11-12T00:00:00Z", away: "EDM", home: "SEA", as: 3, hs: 1, last: "REG" },
+    { id: 3, date: "2026-11-12", start: "2026-11-13T00:00:00Z", away: "COL", home: "DAL", as: 1, hs: 0, last: "REG" },
+  ];
+  const T = (g, o, a, h, ts = "2026-11-01T00:00:00Z") => ({ gameId: g, owner: o, a, h, ts, start: "" });
+  const tips = [T(1, "A", 3, 2), T(1, "B", 2, 2), T(1, "C", 2, 2), T(2, "A", 2, 1), T(2, "B", 1, 1), T(3, "A", 1, 0), T(3, "C", 0, 0), T(3, "B", 1, 0, "2026-11-13T00:05:00Z")];
+  const r = L.settleBobovka({}, tips, fin);
+  assert.equal(r.games["1"].r, "2:2"); assert.deepEqual(r.games["1"].hit, ["B", "C"]); assert.equal(r.games["1"].w, 15);
+  assert.equal(r.games["2"].toJp, 20); assert.ok(!r.games["3"].t.B, "pozdní tip neplatí");
+  assert.equal(r.games["3"].w, 40); assert.equal(r.games["3"].jp, 20); assert.equal(r.jackpot, 0);
+  const m = r.months["2026-11"].owners;
+  assert.deepEqual(m.A, { tips: 3, hits: 1, staked: 30, won: 40 }); assert.deepEqual(m.B, { tips: 2, hits: 1, staked: 20, won: 15 });
+  assert.equal(Object.values(m).reduce((t, x) => t + x.won - x.staked, 0), 0, "součet bilancí je nula");
+  // dělení 3 výherci
+  const r2 = L.settleBobovka({}, [T(2, "A", 3, 1), T(2, "B", 3, 1), T(2, "C", 3, 1), T(2, "D", 0, 0)], fin);
+  const w = r2.months["2026-11"].owners; assert.equal(Math.round((w.A.won + w.B.won + w.C.won) * 100) / 100, 40);
+  console.log("✓ Bobovka");
+}

@@ -2,7 +2,8 @@ rules_version = '2';
 // Číst může každý. Zapisovat z aplikace jde jen:
 //  - vlastní návrh sestavy (dokud není potvrzená),
 //  - výběr náhradníka (jen nový záznam ve stavu "pending"),
-//  - příznak "vyplaceno" u měsíce.
+//  - příznak "vyplaceno" u měsíce (fantasy i Bobovka),
+//  - vlastní tip v Bobovce (čas tipu = čas serveru; pozdní tipy sync nepočítá).
 // Všechno ostatní zapisuje jen synchronizační skript (servisní účet pravidla obchází).
 service cloud.firestore {
   match /databases/{db}/documents {
@@ -23,6 +24,20 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['injuryId', 'owner', 'playerId', 'name', 'team', 'pos', 'createdAt', 'status'])
         && request.resource.data.status == 'pending'
         && request.resource.data.createdAt == request.time;
+    }
+
+    match /tips/{id} {
+      allow create, update: if request.resource.data.owner in owners()
+        && id == string(request.resource.data.gameId) + '_' + request.resource.data.owner
+        && request.resource.data.keys().hasOnly(['gameId', 'owner', 'a', 'h', 'start', 'ts'])
+        && request.resource.data.a is int && request.resource.data.a >= 0 && request.resource.data.a <= 20
+        && request.resource.data.h is int && request.resource.data.h >= 0 && request.resource.data.h <= 20
+        && request.resource.data.start is string
+        && request.resource.data.ts == request.time;
+    }
+
+    match /bobovkaPaid/{key} {
+      allow create, update: if request.resource.data.keys().hasOnly(['paid']) && request.resource.data.paid is bool;
     }
 
     match /months/{key} {
