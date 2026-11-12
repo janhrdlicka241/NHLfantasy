@@ -103,7 +103,12 @@ document.getElementById("view").addEventListener("click", async (e) => {
   else if (a === "tipdel") {
     const gid = t.dataset.id, me = U.me;
     if (t.dataset.start <= new Date().toISOString()) { alert2("Zápas už začal, tip nejde smazat."); return; }
-    try { await deleteDoc(doc(db, "tips", `${gid}_${me}`)); delete U.tipDraft?.[`${me}|${gid}`]; } catch (er) { alert2(`Tip se nesmazal: ${er.message}`); }
+    try {
+      // tip uložený před v1.33 nemá čas začátku (sm) – nejdřív ho doplníme, jinak by ho pravidla nedovolila smazat
+      const my = S.tips.find((x) => String(x.gameId) === String(gid) && x.owner === me);
+      if (my && typeof my.sm !== "number") await setDoc(doc(db, "tips", `${gid}_${me}`), { gameId: Number(gid), owner: me, a: my.a, h: my.h, start: t.dataset.start, sm: Date.parse(t.dataset.start), ts: serverTimestamp() });
+      await deleteDoc(doc(db, "tips", `${gid}_${me}`)); delete U.tipDraft?.[`${me}|${gid}`];
+    } catch (er) { alert2(`Tip se nesmazal: ${er.message}`); }
     render(); return;
   }
   else if (a === "bmonth") U.bmonth = t.dataset.k;
