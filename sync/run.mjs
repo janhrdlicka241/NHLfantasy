@@ -193,6 +193,14 @@ async function sync(fs) {
   // Bobovka – vyhodnocení tipů odehraných zápasů
   let bob = null;
   try {
+    // jednorázový úklid zkušebních tipů (seed/manual.json → tipsDeleteBefore)
+    if (manual.tipsDeleteBefore && !DRY) {
+      const all = await fs.collection("tips").get();
+      for (const d of all.docs) {
+        const x = d.data(), ts = x.ts?.toDate ? x.ts.toDate().toISOString() : String(x.ts || "");
+        if (ts && ts < manual.tipsDeleteBefore) { await d.ref.delete(); console.log(`Bobovka: smazán zkušební tip ${d.id} (${x.owner} ${x.a}:${x.h})`); }
+      }
+    }
     const bSnap = await fs.doc("bobovka/state").get();
     const tips = await tipsSince(fs, addDays(today, -4) + "T00:00:00Z");
     bob = L.settleBobovka(bSnap.exists ? bSnap.data() : {}, tips, seasonList);
