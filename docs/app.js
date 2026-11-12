@@ -65,7 +65,7 @@ function showWho(owners) {
 }
 document.getElementById("whoGrid").addEventListener("click", (e) => { const b = e.target.closest("[data-who]"); if (b) setMe(b.dataset.who); });
 document.getElementById("meSel").onchange = (e) => setMe(e.target.value);
-function setMe(o) { U.me = o; keep("fnhl-me", o); U.slotOpen = null; U.pickOpen = null; render(); }
+function setMe(o) { U.me = o; keep("fnhl-me", o); U.tipDraft = {}; U.slotOpen = null; U.pickOpen = null; render(); }
 // měsíce s daty + aktuální měsíc podle času NHL (i když v něm ještě nikdo nebodoval)
 function monthKeys() { const cur = V.nyDate().slice(0, 7); const k = new Set(Object.keys(S.months)); if (S.league) k.add(cur); return [...k].sort(); }
 document.getElementById("prevM").onclick = () => { const k = monthKeys(); U.month = k[k.indexOf(U.month) - 1] || U.month; render(); };
@@ -147,7 +147,8 @@ async function saveTip(inp) {
   if (!Number.isInteger(A) || !Number.isInteger(H) || A < 0 || H < 0 || A > 20 || H > 20) { alert2("Tip musí být celá čísla 0–20."); return; }
   if (box.dataset.start <= new Date().toISOString()) { alert2("Zápas už začal, tip nejde uložit."); return; }
   const gid = Number(box.dataset.gid);
-  try { await setDoc(doc(db, "tips", `${gid}_${U.me}`), { gameId: gid, owner: U.me, a: A, h: H, start: box.dataset.start, ts: serverTimestamp() }); }
+  const me = U.me;
+  try { await setDoc(doc(db, "tips", `${gid}_${me}`), { gameId: gid, owner: me, a: A, h: H, start: box.dataset.start, ts: serverTimestamp() }); delete U.tipDraft?.[`${me}|${gid}`]; render(); }
   catch (er) { alert2(`Tip se neuložil: ${er.message}`); }
 }
 document.getElementById("pcardOv").addEventListener("click", (e) => {
@@ -156,5 +157,5 @@ document.getElementById("pcardOv").addEventListener("click", (e) => {
 });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && U.card) { U.card = null; render(); } });
 document.getElementById("view").addEventListener("input", (e) => { const t = e.target;
-  if (t.classList.contains("tipin")) { const gid = t.closest("[data-gid]")?.dataset.gid; ((U.tipDraft ||= {})[gid] ||= {})[t.dataset.s] = t.value; return; } if (t.classList.contains("srch")) { U.q[t.dataset.ctx] = t.value; render(); } });
+  if (t.classList.contains("tipin")) { const gid = t.closest("[data-gid]")?.dataset.gid; ((U.tipDraft ||= {})[`${U.me}|${gid}`] ||= {})[t.dataset.s] = t.value; return; } if (t.classList.contains("srch")) { U.q[t.dataset.ctx] = t.value; render(); } });
 render();

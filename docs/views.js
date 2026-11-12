@@ -699,7 +699,7 @@ export function vBobovka(S, U) {
     <div class="jp"><div><small>Jackpot</small><div style="font-weight:700">${jp ? "bere první přesná trefa" : "zatím prázdný – nevyhrané banky se sčítají sem"}</div></div><b>${kcB(jp)}</b></div>
     ${live.length ? `<h3 class="mh">Rozehrané – tipy všech</h3>${live.map((g) => `<div class="panel tg"><div class="tr"><span class="t">${g.away}</span><span class="tname">@</span><span class="t">${g.home}</span><span class="bank"><b>${kcB(tipsOf(g.id).length * 10)}</b>${tipWord(tipsOf(g.id).length)}</span></div>${chips(g, tipsOf(g.id).map((t) => [t.owner, `${t.a}:${t.h}`]))}</div>`).join("")}` : ""}
     ${Object.keys(groups).length ? Object.entries(groups).map(([day, gs]) => `<h3 class="mh">${day}</h3>${gs.map((g) => {
-      const ts = tipsOf(g.id), my = ts.find((t) => t.owner === U.me), dr = U.tipDraft?.[g.id] || {};
+      const ts = tipsOf(g.id), my = ts.find((t) => t.owner === U.me), dr = U.tipDraft?.[`${U.me}|${g.id}`] || {};
       const va = dr.a ?? (my ? my.a : ""), vh = dr.h ?? (my ? my.h : "");
       return `<div class="panel tg" data-gid="${g.id}" data-start="${g.start}"><div class="tr"><span class="tm">${fTime(new Date(g.start))}</span><span class="t">${g.away}</span>
         <span class="sc"><input id="tip-${g.id}-a" class="tipin ${my ? "f" : ""}" data-s="a" inputmode="numeric" maxlength="2" value="${esc(va)}" aria-label="góly ${g.away}"> : <input id="tip-${g.id}-h" class="tipin ${my ? "f" : ""}" data-s="h" inputmode="numeric" maxlength="2" value="${esc(vh)}" aria-label="góly ${g.home}"></span>
