@@ -23,6 +23,8 @@ export const ownChip = (S, o) => o ? `<span class="chip oc" style="background:${
 
 // --- odvozená data ---
 export const openInj = (S, owner, slot) => S.injuries.find((i) => i.active && i.owner === owner && i.slot === slot);
+// klikací jméno hráče → karta hráče
+export const pc = (id, html) => (id ? `<span class="pcl" data-act="pcard" data-id="${id}">${html}</span>` : html);
 export function ownership(S) {
   const m = new Map();
   for (const [o, r] of Object.entries(S.rosters)) for (const sl of r.slots || []) { m.set(sl.base.id, o); if (sl.sub) m.set(sl.sub.id, o); }
@@ -43,13 +45,13 @@ function activeOf(S, owner, sl) {
   return inj ? (sl.sub || null) : sl.base;
 }
 // řádky poolu: nově objekty {i,n,t,…} (Firestore neumí pole v poli), dřív pole
-const skRow = (r) => (Array.isArray(r) ? r : [r.i, r.n, r.t, r.p, r.gp, r.g, r.a]);
-const goRow = (r) => (Array.isArray(r) ? r : [r.i, r.n, r.t, r.gp, r.w, r.l, r.ot, r.gaa, r.sv, r.so]);
+const skRow = (r) => (Array.isArray(r) ? r : [r.i, r.n, r.t, r.p, r.gp, r.g, r.a, r.c || "", r.r || 0]);
+const goRow = (r) => (Array.isArray(r) ? r : [r.i, r.n, r.t, r.gp, r.w, r.l, r.ot, r.gaa, r.sv, r.so, r.c || ""]);
 export function poolList(S, pos) {
   const P0 = S.pool; if (!P0) return [];
   const P = { skaters: (P0.skaters || []).map(skRow), goalies: (P0.goalies || []).map(goRow) };
-  if (pos === "G") return P.goalies.map((r) => ({ id: r[0], name: r[1], team: r[2], pos: "G", gp: r[3], w: r[4], l: r[5], ot: r[6], gaa: r[7], sv: r[8], so: r[9], score: r[9] * 100 + r[4] }));
-  return P.skaters.map((r) => ({ id: r[0], name: r[1], team: r[2], code: r[3], pos: r[3] === "D" ? "D" : "F", gp: r[4], g: r[5], a: r[6], pts: r[5] + r[6], score: r[5] + r[6] }))
+  if (pos === "G") return P.goalies.map((r) => ({ id: r[0], name: r[1], team: r[2], pos: "G", gp: r[3], w: r[4], l: r[5], ot: r[6], gaa: r[7], sv: r[8], so: r[9], score: r[9] * 100 + r[4], nat: r[10] || "" }));
+  return P.skaters.map((r) => ({ id: r[0], name: r[1], team: r[2], code: r[3], pos: r[3] === "D" ? "D" : "F", gp: r[4], g: r[5], a: r[6], pts: r[5] + r[6], score: r[5] + r[6], nat: r[7] || "", rook: !!r[8] }))
     .filter((p) => !pos || p.pos === pos);
 }
 export function standings(S, mk) {
@@ -110,7 +112,7 @@ export function vTabulka(S, U) {
       <td class="num ${balCls(x.bal)}"><b>${signKc(x.bal)}</b></td></tr>
       ${o ? `<tr class="sub"><td></td><td colspan="5">${x.players.length ? `<table class="mini"><tbody>${x.players.map((p) => `<tr>
         <td><span class="pos ${p.pos}">${POSL[p.pos]}</span></td>
-        <td>${esc(p.name)} <span class="nhl">${esc(p.team)}</span> ${p.role === "sub" ? '<span class="tag sub">náhradník</span>' : ""}</td>
+        <td>${pc(+p.id, esc(p.name))} <span class="nhl">${esc(p.team)}</span> ${p.role === "sub" ? '<span class="tag sub">náhradník</span>' : ""}</td>
         <td class="num tname">${p.pos === "G" ? p.so + " nul" : p.g + " G"}</td><td class="num tname">${p.a} A</td>
         <td class="num"><b>${p.pts}</b></td></tr>`).join("")}</tbody></table>` : `<div class="tname">Zatím žádné body.</div>`}</td></tr>` : ""}`; }).join("")}</tbody>
   </table></div>
@@ -137,11 +139,11 @@ export function vDen(S, U) {
         ${mini ? "" : `<span class="who">${chipsPts(g.pl)}</span>`}<span class="ar">${op ? "▾" : "▸"}</span></div>`; };
     const body = (g) => {
       const ow = (id) => (g.pl || []).find((e) => e.id === id)?.owner;
-      const nm = (p) => { const o = ow(p.id); return o ? `<span class="ours" style="--oc:${col(S, o)}">${esc(p.n)}</span>` : esc(p.n); };
+      const nm = (p) => { const o = ow(p.id); return pc(p.id, o ? `<span class="ours" style="--oc:${col(S, o)}">${esc(p.n)}</span>` : esc(p.n)); };
       return `${g.goals?.length ? `<div class="goals">${g.goals.map((gl) => `<div class="goal"><span class="gtime">${gl.p >= 4 ? "prodl." : gl.p + ". tř."} ${gl.t}</span><span class="gteam ${gl.team === g.away ? "" : "home"}">${gl.team}</span>
           <span class="gwho"><b>${nm(gl.s)}</b>${gl.a?.length ? ` <span class="tname">(${gl.a.map(nm).join(", ")})</span>` : ""}${gl.k ? ` <span class="chip">${{ PP: "přesilovka", SH: "oslabení", EN: "prázdná brána" }[gl.k] || gl.k}</span>` : ""}</span>${gl.v ? `<a class="vid ${[gl.s, ...(gl.a || [])].some((p) => ow(p.id)) ? "our" : ""}" href="${esc(gl.v)}" target="_blank" rel="noopener" title="Video gólu">▶</a>` : ""}</div>`).join("")}</div>` : ""}
         ${g.pl?.length ? `<div class="glist">${[...g.pl].sort((a, b) => b.pts - a.pts).map((e) => `<div class="grow"><span class="pos ${e.pos}">${POSL[e.pos]}</span>
-          <span class="gname">${esc(short(e.name))} <span class="nhl">${e.team}</span></span><span class="tname">${statTxt(e)}</span>
+          <span class="gname">${pc(e.id, esc(short(e.name)))} <span class="nhl">${e.team}</span></span><span class="tname">${statTxt(e)}</span>
           ${ownChip(S, e.owner)}<b class="gpts ${e.pts ? "" : "zero"}">${e.pts ? "+" + e.pts : "0"}</b></div>`).join("")}</div>` : ""}
         ${pastOpen(S, U, g)}`; };
     return `<div class="dayhead"><h2>Zápasy</h2><span class="tname">datum podle času NHL</span></div>${seg}
@@ -167,7 +169,7 @@ export function vDen(S, U) {
   }
   const head = (g, mini) => `<div class="g1h" data-act="gopen" data-id="${g.id}" role="button"><span class="tm2">${fTime(g.d)}</span><span class="sc">${g.away} <span class="at">@</span> ${g.home}</span>
     ${mini ? "" : `<span class="who">${[...new Set(g.pl.map((p) => p.own))].map((o) => `<span class="oc2" style="background:${col(S, o)}">${esc(o)}</span>`).join("")}</span>`}<span class="ar">${isOpen(g) ? "▾" : "▸"}</span></div>`;
-  const body = (g) => `${g.pl.length ? `<div class="gp">${g.pl.map((p) => `<span class="who2"><span class="pos ${p.pos}">${POSL[p.pos]}</span> ${esc(short(p.n))} <span class="nhl">${p.t}</span> ${ownChip(S, p.own)}</span>`).join("")}</div>` : ""}${nextOpen(S, U, g)}`;
+  const body = (g) => `${g.pl.length ? `<div class="gp">${g.pl.map((p) => `<span class="who2"><span class="pos ${p.pos}">${POSL[p.pos]}</span> ${pc(p.id, esc(short(p.n)))} <span class="nhl">${p.t}</span> ${ownChip(S, p.own)}</span>`).join("")}</div>` : ""}${nextOpen(S, U, g)}`;
   return `<div class="dayhead"><h2>Zápasy</h2><span class="tname">časy v našem čase</span></div>${seg}
   ${Object.keys(groups).length ? Object.entries(groups).map(([day, gs]) => { const [big, small] = split(gs, (g) => g.pl.length);
     return `<h3 class="mh">${day}</h3>
@@ -220,9 +222,9 @@ export function vTymy(S, U) {
         const line = (id) => { const p = mp[id] || { g: 0, a: 0, so: 0, gp: 0 };
           return `<div class="mstat">${sl.pos === "G" ? `${p.so} ${p.so === 1 ? "nula" : p.so >= 2 && p.so <= 4 ? "nuly" : "nul"} · ${p.a} A` : `${p.g} G · ${p.a} A`}${p.gp ? ` · ${p.gp} záp.` : ""}</div>`; };
         return `<div class="slotrow"><span class="pos ${sl.pos}">${POSL[sl.pos]}</span>
-          <div class="nb"><div>${esc(sl.base.name)} <span class="nhl">${sl.base.team}</span> ${inj ? '<span class="tag inj">ZRANĚN</span> ' + injToggle(inj, U) : ""}</div>
+          <div class="nb"><div>${pc(sl.base.id, esc(sl.base.name))} <span class="nhl">${sl.base.team}</span> ${inj ? '<span class="tag inj">ZRANĚN</span> ' + injToggle(inj, U) : ""}</div>
           ${line(sl.base.id)}
-          ${sl.sub ? `<div>${esc(sl.sub.name)} <span class="nhl">${sl.sub.team}</span> <span class="tag sub">náhradník</span> <span class="num">${spt} b.</span></div>${line(sl.sub.id)}` : inj ? `<div class="err">čeká na náhradníka</div>` : ""}
+          ${sl.sub ? `<div>${pc(sl.sub.id, esc(sl.sub.name))} <span class="nhl">${sl.sub.team}</span> <span class="tag sub">náhradník</span> <span class="num">${spt} b.</span></div>${line(sl.sub.id)}` : inj ? `<div class="err">čeká na náhradníka</div>` : ""}
           ${inj && sl.bank > 0 ? `<div class="gamesc">${inj.baseBack ? `${esc(short(sl.base.name))} je zpět – náhradník dohraje ještě ${sl.bank}` : `v bance ${sl.bank} ${sl.bank === 1 ? "zápas" : sl.bank < 5 ? "zápasy" : "zápasů"} pro náhradníka`}</div>` : ""}
           <div class="gamesc">${slotLabel(sl.key)} · ${sl.games}/84 zápasů</div>${inj ? injDetail(inj, U) : ""}</div>
           <div class="num"><b>${bp}</b></div></div>`; }).join("")}
@@ -305,31 +307,32 @@ function vHraci(S, U) {
   const own = ownership(S);
   const SK = { pts: (r) => r.pts, g: (r) => r.g, a: (r) => r.a };
   const cmp = (a, b) => SK[U.sortK](b) - SK[U.sortK](a) || b.pts - a.pts || b.g - a.g;
-  const f = (r) => !U.onlyFree || !own.has(r.id);
+  const f = (r) => (!U.onlyFree || !own.has(r.id)) && (!U.nat || r.nat === U.nat) && (!U.rook || r.rook);
   const sk = poolList(S, null);
   const all = [...sk].sort(cmp).filter(f).slice(0, 50);
   const fw = sk.filter((r) => r.pos === "F").sort(cmp).filter(f).slice(0, 10);
   const df = sk.filter((r) => r.pos === "D").sort(cmp).filter(f).slice(0, 10);
   const GK = { w: (r) => r.w, so: (r) => r.so, sv: (r) => (r.gp >= 3 ? r.sv || 0 : 0), gaa: (r) => (r.gp >= 3 && r.gaa != null ? -r.gaa : -99) };
-  const glAll = poolList(S, "G").sort((a, b) => GK[U.sortG](b) - GK[U.sortG](a) || b.w - a.w).filter(f);
+  const glAll = poolList(S, "G").filter((r) => !U.nat || r.nat === U.nat).sort((a, b) => GK[U.sortG](b) - GK[U.sortG](a) || b.w - a.w).filter(f);
   const gl = U.allG ? glAll : glAll.slice(0, 10);
   const thG = (k, l) => `<th class="num"><button class="sortb ${U.sortG === k ? "on" : ""}" data-act="sortg" data-k="${k}">${l}${U.sortG === k ? " ▾" : ""}</button></th>`;
   const thS = (k, l) => `<th class="num"><button class="sortb ${U.sortK === k ? "on" : ""}" data-act="sort" data-k="${k}">${l}${U.sortK === k ? " ▾" : ""}</button></th>`;
   const tbl = (rows) => `<div class="panel scroll"><table><thead><tr><th></th><th>Hráč</th><th class="num">Z</th>${thS("g", "G")}${thS("a", "A")}${thS("pts", "B")}<th>Majitel</th></tr></thead>
-    <tbody>${rows.map((r, i) => `<tr><td class="rank" style="font-size:17px">${i + 1}</td><td><span class="pos ${r.pos}">${POSL[r.pos]}</span> ${esc(r.name)} <span class="nhl">${r.team}</span></td>
+    <tbody>${rows.map((r, i) => `<tr><td class="rank" style="font-size:17px">${i + 1}</td><td><span class="pos ${r.pos}">${POSL[r.pos]}</span> ${pc(r.id, esc(r.name))} <span class="nhl">${r.team}</span>${r.nat ? ` <span class="flag" title="${natName(r.nat)}">${flag(r.nat)}</span>` : ""}</td>
     <td class="num">${r.gp}</td><td class="num">${r.g}</td><td class="num">${r.a}</td><td class="num pts" style="font-size:19px">${r.pts}</td><td>${ownChip(S, own.get(r.id))}</td></tr>`).join("")}</tbody></table></div>`;
   const owners = S.league?.owners || [];
   return `<div class="dayhead"><h2>Kanadské bodování NHL</h2>
     <label class="opt" style="padding:6px 10px"><input type="checkbox" id="onlyFree" data-act="free" ${U.onlyFree ? "checked" : ""}><span>Jen volní hráči</span></label></div>
-  <div class="seg"><span class="tname">Řadit podle:</span>${[["pts", "Body"], ["g", "Góly"], ["a", "Asistence"]].map(([k, l]) => `<button class="btn ${U.sortK === k ? "pri" : ""}" data-act="sort" data-k="${k}">${l}</button>`).join("")}</div>
+  <div class="seg"><span class="tname">Řadit podle:</span>${[["pts", "Body"], ["g", "Střelci"], ["a", "Nahrávači"]].map(([k, l]) => `<button class="btn ${U.sortK === k ? "pri" : ""}" data-act="sort" data-k="${k}">${l}</button>`).join("")}</div>
+  ${natBar(S, U)}
   <div class="legend">${owners.map((o) => ownChip(S, o)).join("")}${ownChip(S, null)}</div>
   <div class="jump"><a href="#top50" class="btn">Top 50</a><a href="#topf" class="btn">Útočníci</a><a href="#topd" class="btn">Obránci</a><a href="#topg" class="btn">Brankáři</a></div>
-  <h3 class="mh" id="top50">Top 50 hráčů</h3>${tbl(all)}
+  <h3 class="mh" id="top50">Top 50 hráčů${U.nat ? ` – ${flag(U.nat)} ${natName(U.nat)}` : ""}${U.rook ? " – nováčci" : ""}</h3>${all.length ? tbl(all) : `<div class="panel empty">Nikdo neodpovídá filtru.</div>`}
   <h3 class="mh" id="topf">Top 10 útočníků</h3>${tbl(fw)}
   <h3 class="mh" id="topd">Top 10 obránců</h3>${tbl(df)}
   <h3 class="mh" id="topg">${U.allG ? `Všichni brankáři (${glAll.length})` : "Top 10 brankářů"}</h3>
   <div class="panel scroll"><table><thead><tr><th></th><th>Brankář</th><th class="num">Z</th>${thG("w", "V")}<th class="num">P</th><th class="num">PvP</th>${thG("gaa", "GAA")}${thG("sv", "Úsp.")}${thG("so", "Nuly")}<th>Majitel</th></tr></thead>
-  <tbody>${gl.map((r, i) => `<tr><td class="rank" style="font-size:17px">${i + 1}</td><td><span class="pos G">B</span> ${esc(r.name)} <span class="nhl">${r.team}</span></td>
+  <tbody>${gl.map((r, i) => `<tr><td class="rank" style="font-size:17px">${i + 1}</td><td><span class="pos G">B</span> ${pc(r.id, esc(r.name))} <span class="nhl">${r.team}</span>${r.nat ? ` <span class="flag" title="${natName(r.nat)}">${flag(r.nat)}</span>` : ""}</td>
     <td class="num">${r.gp}</td><td class="num"><b>${r.w}</b></td><td class="num">${r.l}</td><td class="num">${r.ot}</td><td class="num">${r.gaa ?? "–"}</td><td class="num">${r.sv != null ? r.sv.toFixed(3).replace(/^0/, "") : "–"}</td><td class="num"><b>${r.so}</b></td><td>${ownChip(S, own.get(r.id))}</td></tr>`).join("")}</tbody></table></div>
   <div class="acts" style="margin-top:10px"><button class="btn pri" data-act="allg">${U.allG ? "Zobrazit jen top 10" : `Zobrazit všechny brankáře (${glAll.length})`}</button></div>
   <p class="note">Řadit jde kliknutím na V, GAA, Úsp. nebo Nuly. U GAA a úspěšnosti se počítají jen brankáři s aspoň 3 zápasy.</p>`;
@@ -418,7 +421,7 @@ function vForma(S, U) {
   return `<div class="dayhead"><div class="seg" style="margin:0">${segBtns("formn", n, [[5, "Posl. 5 zápasů"], [10, "Posl. 10"]])}</div>
     <label class="opt" style="padding:6px 10px"><input type="checkbox" data-act="formfree" ${U.formFree ? "checked" : ""}><span>Jen volní hráči</span></label></div>
   <div class="panel scroll"><table><thead><tr><th></th><th>Hráč</th><th class="num">G</th><th class="num">A</th><th class="num">B ▾</th><th>Zápasy</th><th>Majitel</th></tr></thead>
-  <tbody>${rows.map((r, i) => `<tr><td class="rank" style="font-size:17px">${i + 1}</td><td><span class="pos ${r.p.pos}">${POSL[r.p.pos]}</span> ${esc(r.p.name)} <span class="nhl">${r.p.team}</span></td>
+  <tbody>${rows.map((r, i) => `<tr><td class="rank" style="font-size:17px">${i + 1}</td><td><span class="pos ${r.p.pos}">${POSL[r.p.pos]}</span> ${pc(r.p.id, esc(r.p.name))} <span class="nhl">${r.p.team}</span></td>
     <td class="num">${r.p.pos === "G" ? (r.so ? `${r.so}× nula` : "–") : r.g}</td><td class="num">${r.a}</td><td class="num pts" style="font-size:19px">${r.b}</td><td>${dots(S, r.p, r.l, n)}</td><td>${ownChip(S, own.get(r.p.id))}</td></tr>`).join("")}</tbody></table></div>
   <p class="note">Fantasy body za posledních ${n} odehraných zápasů hráče (útočník gól 2, obránce gól 3, asistence 1, brankář nula 5). Čtverečky: modrý = bodoval, šedý = nebodoval (vlevo nejstarší). Jen hráči, kteří hráli v posledních 10 dnech.</p>`;
 }
@@ -441,7 +444,7 @@ function vVolni(S, U) {
   }).filter((r) => r.st === undefined || /day/i.test(r.st));
   rows.sort(srt === "f" ? (a, b) => b.f.b - a.f.b || b.season - a.season : pos === "G" ? (a, b) => b.p.so - a.p.so || b.p.w - a.p.w : (a, b) => b.season - a.season || b.f.b - a.f.b);
   rows = rows.slice(0, 25);
-  const nm = (r) => `<span class="pos ${pos}">${POSL[pos]}</span> ${esc(r.p.name)} <span class="nhl">${r.p.team}</span>${r.st ? ' <span class="tag inj">DTD</span>' : ""}<div class="tname">${esc(nextGame(S, r.p.team) ? "další zápas: " + nextGame(S, r.p.team) : "")}</div>`;
+  const nm = (r) => `<span class="pos ${pos}">${POSL[pos]}</span> ${pc(r.p.id, esc(r.p.name))} <span class="nhl">${r.p.team}</span>${r.st ? ' <span class="tag inj">DTD</span>' : ""}<div class="tname">${esc(nextGame(S, r.p.team) ? "další zápas: " + nextGame(S, r.p.team) : "")}</div>`;
   const head = pos === "G" ? `<th class="num">Z</th><th class="num">V</th><th class="num">Nuly</th>` : `<th class="num">Z</th><th class="num">G</th><th class="num">A</th>`;
   const cells = (r) => pos === "G" ? `<td class="num">${r.p.gp}</td><td class="num">${r.p.w}</td><td class="num">${r.p.so}</td>` : `<td class="num">${r.p.gp}</td><td class="num">${r.p.g}</td><td class="num">${r.p.a}</td>`;
   return `<div class="seg">${segBtns("volpos", pos, [["F", "Útočníci"], ["D", "Obránci"], ["G", "Brankáři"]])}</div>
@@ -493,7 +496,7 @@ const teamSeg = (g, cur, label) => `<div class="seg" style="margin:0">${[g.away,
 function linesHtml(S, lu, withStats, inj) {
   const own = ownership(S);
   const pl = (id) => { const p = lu.P.get(id); if (!p) return ""; const o = own.get(id), out = inj && inj.has(normName(p.n));
-    const nm = o ? `<span class="ours" style="--oc:${col(S, o)}">${esc(short(p.n))}</span>` : esc(short(p.n));
+    const nm = pc(id, o ? `<span class="ours" style="--oc:${col(S, o)}">${esc(short(p.n))}</span>` : esc(short(p.n)));
     return `<span class="pl ${out ? "outp" : ""}">${nm}${withStats && (p.g || p.a) ? ` <span class="tname">${p.g}+${p.a}</span>` : ""}</span>`; };
   const row = (lab, x) => `<div class="line"><span class="ln">${lab}</span><span>${x.ids.map(pl).join("")}</span><span class="t">${withStats ? mmss(x.sec) : ""}</span></div>`;
   if (!lu.f.length) { // bez střídání – aspoň seznam podle času na ledě
@@ -509,7 +512,7 @@ function pastOpen(S, U, g) {
   const goalies = lu?.G?.length ? `<h4>Brankář</h4><table><thead><tr><th>Hráč</th><th class="num">Zás.</th><th class="num">%</th><th class="num">Čas</th></tr></thead><tbody>${lu.G.map((x) => `<tr><td><span class="pos G">B</span> ${esc(short(x.n))}</td><td class="num">${esc(x.sa)}</td><td class="num">${x.pct ? Number(x.pct).toFixed(3).replace(/^0/, "") : "–"}</td><td class="num">${esc(x.toi)}</td></tr>`).join("")}</tbody></table>` : "";
   const own = ownership(S), ow = (id) => (g.pl || []).find((e) => e.id === id)?.owner || own.get(id);
   const stars = g.stars?.length ? `<h4>3 hvězdy zápasu</h4><div class="stars">${g.stars.map((x, i) => { const o = ow(x.id);
-    return `<div><div class="s">${"★".repeat(i + 1)}</div>${o ? `<span class="ours" style="--oc:${col(S, o)}">${esc(short(x.n))}</span>` : esc(short(x.n))} <span class="nhl">${esc(x.t)}</span></div>`; }).join("")}</div>` : "";
+    return `<div><div class="s">${"★".repeat(i + 1)}</div>${pc(x.id, o ? `<span class="ours" style="--oc:${col(S, o)}">${esc(short(x.n))}</span>` : esc(short(x.n)))} <span class="nhl">${esc(x.t)}</span></div>`; }).join("")}</div>` : "";
   return `<div class="gact">${g.rc ? `<a class="btn pri" href="${esc(g.rc)}" target="_blank" rel="noopener">▶ Sestřih zápasu</a>` : `<span class="tname">Sestřih zatím není.</span>`}${g.goals?.some((x) => x.v) ? `<span class="tname" style="align-self:center">▶ u gólu = video na nhl.com</span>` : ""}</div>
   ${stars}${gameStatsHtml(g)}<div class="lu">${teamSeg(g, team, "Formace")}${lu ? linesHtml(S, lu, true) + goalies : `<p class="tname" style="margin:8px 2px">Sestava se načte při další synchronizaci.</p>`}</div>`;
 }
@@ -590,7 +593,7 @@ function nextOpen(S, U, g) {
   <div class="lu">${teamSeg(g, team, "Formace")}
   ${lu ? `<p class="tname" style="margin:8px 2px">Předpokládané formace podle minulého zápasu (${lgDate}). Přeškrtnutí = zranění podle ESPN.</p>${linesHtml(S, lu, false, inj)}` : `<p class="tname" style="margin:8px 2px">Formace z minulého zápasu nejsou k dispozici.</p>`}
   ${gl.length ? `<h4>Brankáři v sezóně</h4><table><thead><tr><th>Hráč</th><th class="num">Z</th><th class="num">V</th><th class="num">Nuly</th><th class="num">%</th></tr></thead><tbody>${gl.map((x) => { const o = own.get(x.id);
-    return `<tr class="${o ? "ourp" : ""}" style="--c:${o ? col(S, o) : "transparent"}"><td><span class="pos G">B</span> ${esc(short(x.name))} ${o ? ownChip(S, o) : ""}</td><td class="num">${x.gp}</td><td class="num">${x.w}</td><td class="num">${x.so}</td><td class="num">${x.sv ? Number(x.sv).toFixed(3).replace(/^0/, "") : "–"}</td></tr>`; }).join("")}</tbody></table>` : ""}</div>`;
+    return `<tr class="${o ? "ourp" : ""}" style="--c:${o ? col(S, o) : "transparent"}"><td><span class="pos G">B</span> ${pc(x.id, esc(short(x.name)))} ${o ? ownChip(S, o) : ""}</td><td class="num">${x.gp}</td><td class="num">${x.w}</td><td class="num">${x.so}</td><td class="num">${x.sv ? Number(x.sv).toFixed(3).replace(/^0/, "") : "–"}</td></tr>`; }).join("")}</tbody></table>` : ""}</div>`;
 }
 
 function gameStatsHtml(g) {
@@ -604,4 +607,54 @@ function gameStatsHtml(g) {
   const gt = x.gv && x.tk ? (() => { const [ga, gh] = x.gv.split("|"), [ta, th] = x.tk.split("|"); return `<div class="gs"><span class="l">${esc(ga)} / ${esc(ta)}</span><span class="m">ztráty / zisky</span><span class="r">${esc(gh)} / ${esc(th)}</span></div>`; })() : "";
   return `<h4>Statistiky zápasu</h4><div class="sts"><div class="gs"><b class="l">${g.away}</b><span class="m"></span><b class="r">${g.home}</b></div>
     ${row("sog", "střely na branku")}${sbp}${row("pp", "přesilovky")}${row("fo", "vhazování", pct)}${row("pim", "trestné minuty")}${row("hits", "hity")}${row("blk", "zblok. střely")}${gt}</div>`;
+}
+
+// --- národnosti ---
+const NAT = { CAN: ["CA", "Kanada"], USA: ["US", "USA"], CZE: ["CZ", "Česko"], SVK: ["SK", "Slovensko"], SWE: ["SE", "Švédsko"], FIN: ["FI", "Finsko"], RUS: ["RU", "Rusko"],
+  DEU: ["DE", "Německo"], CHE: ["CH", "Švýcarsko"], DNK: ["DK", "Dánsko"], NOR: ["NO", "Norsko"], AUT: ["AT", "Rakousko"], LVA: ["LV", "Lotyšsko"], BLR: ["BY", "Bělorusko"],
+  FRA: ["FR", "Francie"], GBR: ["GB", "Británie"], SVN: ["SI", "Slovinsko"], KAZ: ["KZ", "Kazachstán"], UKR: ["UA", "Ukrajina"], AUS: ["AU", "Austrálie"], NLD: ["NL", "Nizozemsko"],
+  ITA: ["IT", "Itálie"], POL: ["PL", "Polsko"], JPN: ["JP", "Japonsko"], HUN: ["HU", "Maďarsko"], EST: ["EE", "Estonsko"], LTU: ["LT", "Litva"], KOR: ["KR", "Korea"], CHN: ["CN", "Čína"] };
+export const natName = (c) => NAT[c]?.[1] || c;
+export const flag = (c) => { const a = NAT[c]?.[0]; return a ? String.fromCodePoint(...[...a].map((x) => 0x1f1a5 + x.charCodeAt(0))) : c; };
+function natBar(S, U) {
+  const sk = poolList(S, null); if (!sk.some((r) => r.nat)) return "";
+  const cnt = {}; for (const r of [...sk, ...poolList(S, "G")]) if (r.nat) cnt[r.nat] = (cnt[r.nat] || 0) + 1;
+  const main = ["CZE", "SVK", "CAN", "USA", "SWE", "FIN", "RUS"].filter((c) => cnt[c]);
+  const rest = Object.keys(cnt).filter((c) => !main.includes(c)).sort((a, b) => cnt[b] - cnt[a]);
+  return `<div class="seg natbar"><button class="btn ${!U.nat ? "pri" : ""}" data-act="nat" data-k="">Všichni</button>${main.map((c) => `<button class="btn ${U.nat === c ? "pri" : ""}" data-act="nat" data-k="${c}" title="${natName(c)}">${flag(c)} ${c}</button>`).join("")}
+    <select class="natsel" data-act="natsel"><option value="">další…</option>${rest.map((c) => `<option value="${c}" ${U.nat === c ? "selected" : ""}>${flag(c)} ${natName(c)} (${cnt[c]})</option>`).join("")}</select>
+    ${sk.some((r) => r.rook) ? `<label class="opt" style="padding:6px 10px"><input type="checkbox" data-act="rook" ${U.rook ? "checked" : ""}><span>Jen nováčci</span></label>` : ""}</div>`;
+}
+
+// --- karta hráče ---
+export function vCard(S, id) {
+  const sk = poolList(S, null), gl = poolList(S, "G");
+  const p = sk.find((x) => x.id === id) || gl.find((x) => x.id === id);
+  const close = `<button class="pcx" data-act="pclose" aria-label="Zavřít">✕</button>`;
+  if (!p) return `<div class="pcard panel">${close}<p class="tname">Hráč zatím nemá v sezóně odehraný zápas.</p></div>`;
+  const own = ownership(S).get(id), inj = injSet(S).get(normName(p.name));
+  const rank = (list, key) => 1 + list.filter((x) => key(x) > key(p)).length;
+  const box = (v, l) => `<div class="pb"><b>${v}</b><span>${l}</span></div>`;
+  const f = formStats(S, p, 5);
+  let stats, ranks;
+  if (p.pos === "G") {
+    stats = box(p.gp, "zápasy") + box(p.w, "výhry") + box(p.so, "nuly") + box(p.sv != null ? p.sv.toFixed(3).replace(/^0/, "") : "–", "úspěšnost") + box(p.gaa ?? "–", "GAA");
+    ranks = [`${rank(gl, (x) => x.w)}. v NHL ve výhrách`, `${rank(gl, (x) => x.so)}. v nulách`, p.nat ? `${rank(gl.filter((x) => x.nat === p.nat), (x) => x.w)}. z brankářů ${flag(p.nat)} ${natName(p.nat)}` : ""];
+  } else {
+    stats = box(p.gp, "zápasy") + box(p.g, "góly") + box(p.a, "asistence") + box(p.pts, "body") + box(fpts(p.pos, p.g, p.a, 0), "fantasy");
+    const same = sk.filter((x) => x.pos === p.pos);
+    ranks = [`${rank(sk, (x) => x.pts)}. v kanadském bodování NHL`, `${rank(sk, (x) => x.g)}. mezi střelci`, `${rank(same, (x) => x.pts)}. mezi ${p.pos === "D" ? "obránci" : "útočníky"}`,
+      p.nat ? `${rank(sk.filter((x) => x.nat === p.nat), (x) => x.pts)}. mezi hráči ${flag(p.nat)} ${natName(p.nat)}` : "", p.rook ? `${rank(sk.filter((x) => x.rook), (x) => x.pts)}. mezi nováčky` : ""];
+  }
+  const ng = nextGame(S, p.team);
+  return `<div class="pcard panel">${close}
+    <div class="pch"><span class="pos ${p.pos}">${POSL[p.pos]}</span><div><div class="pcn">${esc(p.name)}</div>
+      <div class="tname">${esc(p.team)}${p.nat ? ` · ${flag(p.nat)} ${natName(p.nat)}` : ""}${p.rook ? " · nováček" : ""}</div></div></div>
+    <div class="pco">${own ? ownChip(S, own) : ownChip(S, null)}${inj ? ` <span class="tag inj">${/day/i.test(inj) ? "DTD" : "zraněný"}</span>` : ""}</div>
+    <div class="pbs">${stats}</div>
+    <ul class="pranks">${ranks.filter(Boolean).map((r) => `<li>${r}</li>`).join("")}</ul>
+    ${f.l.length ? `<div class="pform"><span class="tname">Forma (5 z.)</span> ${dots(S, p, f.l, 5)} <b>${p.pos === "G" ? `${f.so}× nula` : `${f.g}+${f.a}`}</b> <span class="tname">· ${f.b} fantasy b.</span></div>` : ""}
+    ${ng ? `<div class="tname">Další zápas: ${esc(ng)}</div>` : ""}
+    <a class="btn" href="https://www.nhl.com/player/${id}" target="_blank" rel="noopener" style="text-decoration:none;justify-self:start">Profil na nhl.com ↗</a>
+  </div>`;
 }

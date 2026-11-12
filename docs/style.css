@@ -259,8 +259,8 @@ tr.ourp td{background:color-mix(in srgb,var(--c) 12%,transparent)}tr.ourp td:fir
 .oc2{font-size:12px;font-weight:700;color:#fff;border-radius:10px;padding:1px 7px;white-space:nowrap}
 .g1h .ar{color:var(--muted);font-size:13px;margin-left:auto}
 .g1b{padding:0 12px 12px;display:grid;gap:8px}
-.mini{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px}
-.mini .g1{margin:0}.mini .g1.dim{opacity:.6}.mini .g1h{padding:8px 10px}.mini .sc{font-size:16px}
+div.mini{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px}
+div.mini .g1{margin:0}div.mini .g1.dim{opacity:.6}div.mini .g1h{padding:8px 10px}div.mini .sc{font-size:16px}
 .g1b h4{margin:6px 0 0;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
 .stars{display:flex;gap:6px}.stars>div{flex:1;background:var(--ice);border-radius:6px;padding:6px 8px;font-size:13px;text-align:center}
 .stars .s{color:var(--gold);font-size:14px;letter-spacing:1px}
@@ -269,3 +269,19 @@ tr.ourp td{background:color-mix(in srgb,var(--c) 12%,transparent)}tr.ourp td:fir
 .gs .m{text-align:center;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
 .gb{grid-column:1/-1;display:flex;height:5px;border-radius:3px;overflow:hidden;background:var(--line)}
 .gb i{background:var(--navy)}.gb b{background:var(--red)}
+
+/* v1.30 karta hráče, národnosti */
+.pcl{cursor:pointer;text-decoration:underline dotted color-mix(in srgb,currentColor 35%,transparent);text-underline-offset:3px}
+.flag{font-size:14px}
+.natbar{flex-wrap:wrap}.natsel{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--surface)}
+#pcardOv{position:fixed;inset:0;z-index:50;background:rgba(10,20,40,.45);display:flex;align-items:flex-end;justify-content:center;padding:12px}
+#pcardOv:empty{display:none}
+.pcard{position:relative;width:100%;max-width:460px;padding:16px;display:grid;gap:10px;max-height:85vh;overflow:auto}
+@media(min-width:700px){#pcardOv{align-items:center}}
+.pcx{position:absolute;top:8px;right:8px;border:0;background:var(--ice);border-radius:50%;width:32px;height:32px;font-size:16px;cursor:pointer}
+.pch{display:flex;gap:10px;align-items:center}.pcn{font-family:var(--display);font-size:26px;font-weight:800;line-height:1.05;text-transform:uppercase}
+.pbs{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.pb{background:var(--ice);border-radius:6px;padding:8px 4px;text-align:center}.pb b{display:block;font-family:var(--display);font-size:24px;font-weight:800;line-height:1}
+.pb span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+.pranks{margin:0;padding-left:18px;display:grid;gap:3px;font-size:14px}.pranks li::marker{color:var(--red)}
+.pform{display:flex;gap:8px;align-items:center;flex-wrap:wrap}

@@ -55,6 +55,7 @@ function draw() {
   const view = { tabulka: V.vTabulka, den: V.vDen, tymy: V.vTymy, zraneni: V.vZraneni, nhl: V.vNhl, vyuctovani: V.vVyuct }[U.tab];
   document.getElementById("view").innerHTML = S.league ? view(S, U) : `<div class="panel empty">Liga ještě není založená – spusť na GitHubu workflow „NHL data“ v režimu seed.</div>`;
   if (fid) { const n = document.getElementById(fid); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch {} } }
+  document.getElementById("pcardOv").innerHTML = U.card ? V.vCard(S, U.card) : "";
   document.getElementById("upd").textContent = S.meta?.lastRun ? `Data z NHL aktualizována ${new Date(S.meta.lastRun).toLocaleString("cs-CZ")}` : "";
 }
 function showWho(owners) {
@@ -97,6 +98,10 @@ document.getElementById("view").addEventListener("click", async (e) => {
   else if (a === "allg") U.allG = !U.allG;
   else if (a === "stat") U.stat = t.dataset.k;
   else if (a === "vyuk") U.vyuK = t.dataset.k;
+  else if (a === "pcard") { e.stopPropagation(); U.card = +t.dataset.id; }
+  else if (a === "nat") U.nat = t.dataset.k;
+  else if (a === "rook") U.rook = t.checked;
+  else if (a === "natsel") return;
   else if (a === "gopen") { if (e.target.closest("a")) return; (U.openG ||= new Set()); const k = t.dataset.id; U.openG.has(k) ? U.openG.delete(k) : U.openG.add(k); }
   else if (a === "lut") { (U.luT ||= {})[t.dataset.id] = t.dataset.k; }
   else if (a === "oopen") { (U.openO ||= new Set()); const k = t.dataset.k; U.openO.has(k) ? U.openO.delete(k) : U.openO.add(k); }
@@ -128,5 +133,11 @@ document.getElementById("view").addEventListener("click", async (e) => {
   else return;
   render();
 });
+document.getElementById("view").addEventListener("change", (e) => { const t = e.target; if (t.dataset.act === "natsel") { U.nat = t.value; render(); } });
+document.getElementById("pcardOv").addEventListener("click", (e) => {
+  const t = e.target.closest("[data-act]");
+  if (e.target.id === "pcardOv" || t?.dataset.act === "pclose") { U.card = null; render(); }
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && U.card) { U.card = null; render(); } });
 document.getElementById("view").addEventListener("input", (e) => { const t = e.target; if (t.classList.contains("srch")) { U.q[t.dataset.ctx] = t.value; render(); } });
 render();
