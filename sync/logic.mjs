@@ -60,8 +60,8 @@ export function mergeRosters(pool, roster) {
 // Pro uložení do Firestore: řádky jako objekty (pole v poli Firestore neumí)
 export function encodePool(pool) {
   return {
-    skaters: pool.skaters.map(([i, n, t, p, gp, g, a]) => ({ i, n, t, p, gp, g, a })),
-    goalies: pool.goalies.map(([i, n, t, gp, w, l, ot, gaa, sv, so]) => ({ i, n, t, gp, w, l, ot, gaa, sv, so })),
+    skaters: pool.skaters.map(([i, n, t, p, gp, g, a, c, r]) => ({ i, n, t, p, gp, g, a, ...(c ? { c } : {}), ...(r ? { r: 1 } : {}) })),
+    goalies: pool.goalies.map(([i, n, t, gp, w, l, ot, gaa, sv, so, c]) => ({ i, n, t, gp, w, l, ot, gaa, sv, so, ...(c ? { c } : {}) })),
   };
 }
 export function poolIndex(pool) {

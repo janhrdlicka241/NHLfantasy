@@ -64,11 +64,20 @@ export async function pool(seasonId) {
   const exp = encodeURIComponent(`seasonId=${seasonId} and gameTypeId=2`);
   const sk = await getJson(`${STATS}/skater/summary?limit=-1&sort=points&cayenneExp=${exp}`);
   const go = await getJson(`${STATS}/goalie/summary?limit=-1&sort=wins&cayenneExp=${exp}`);
+  // národnost (bios) a nováčci – nepovinné, když selžou, jede se bez nich
+  const nat = new Map(), rook = new Set();
+  for (const kind of ["skater", "goalie"]) {
+    try { const b = await getJson(`${STATS}/${kind}/bios?limit=-1&cayenneExp=${exp}`, 2); for (const p of b.data || []) if (p.nationalityCode) nat.set(p.playerId, p.nationalityCode); }
+    catch (e) { console.log(`Národnost (${kind}):`, e.message); }
+  }
+  try { const r = await getJson(`${STATS}/skater/summary?limit=-1&cayenneExp=${encodeURIComponent(`seasonId=${seasonId} and gameTypeId=2 and isRookie='1'`)}`, 2); for (const p of r.data || []) rook.add(p.playerId); }
+  catch (e) { console.log("Nováčci:", e.message); }
+  console.log(`Národnost: ${nat.size} hráčů, nováčků: ${rook.size}`);
   return {
-    skaters: (sk.data || []).map((p) => [p.playerId, p.skaterFullName, lastTeam(p.teamAbbrevs), p.positionCode, p.gamesPlayed, p.goals, p.assists]),
+    skaters: (sk.data || []).map((p) => [p.playerId, p.skaterFullName, lastTeam(p.teamAbbrevs), p.positionCode, p.gamesPlayed, p.goals, p.assists, nat.get(p.playerId) || "", rook.has(p.playerId) ? 1 : 0]),
     goalies: (go.data || []).map((p) => [p.playerId, p.goalieFullName, lastTeam(p.teamAbbrevs), p.gamesPlayed, p.wins, p.losses, p.otLosses,
       p.goalsAgainstAverage == null ? null : Math.round(p.goalsAgainstAverage * 100) / 100,
-      p.savePct == null ? null : Math.round(p.savePct * 1000) / 1000, p.shutouts]),
+      p.savePct == null ? null : Math.round(p.savePct * 1000) / 1000, p.shutouts, nat.get(p.playerId) || ""]),
   };
 }
 
