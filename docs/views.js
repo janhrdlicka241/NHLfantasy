@@ -704,9 +704,10 @@ export function vBobovka(S, U) {
       return `<div class="panel tg" data-gid="${g.id}" data-start="${g.start}"><div class="tr"><span class="tm">${fTime(new Date(g.start))}</span><span class="t">${g.away}</span>
         <span class="sc"><input id="tip-${g.id}-a" class="tipin ${my ? "f" : ""}" data-s="a" inputmode="numeric" maxlength="2" value="${esc(va)}" aria-label="góly ${g.away}"> : <input id="tip-${g.id}-h" class="tipin ${my ? "f" : ""}" data-s="h" inputmode="numeric" maxlength="2" value="${esc(vh)}" aria-label="góly ${g.home}"></span>
         <span class="t">${g.home}</span><span class="bank"><b>${kcB(ts.length * 10)}</b>${tipWord(ts.length)}</span></div>
-        ${my ? `<div class="saved">✓ tip uložen · do začátku jde změnit</div>` : ""}</div>`; }).join("")}`).join("")
+        ${my ? `<div class="saved">✓ tip uložen · do začátku jde změnit <button class="tipx" data-act="tipdel" data-id="${g.id}" data-start="${g.start}">✕ Smazat tip</button></div>` : ""}
+        ${ts.length ? chips(g, ts.map((t) => [t.owner, `${t.a}:${t.h}`]).sort((x, y) => (x[0] === U.me ? -1 : y[0] === U.me ? 1 : x[0].localeCompare(y[0])))) : ""}</div>`; }).join("")}`).join("")
       : `<div class="panel empty">Žádné zápasy k tipování v příštích 7 dnech.</div>`}
-    <p class="note">Tip se uloží sám, když vyplníš obě čísla. Tipy ostatních uvidíš po začátku zápasu. Netipnutý zápas tě nic nestojí.</p>`;
+    <p class="note">Tip se uloží sám, když vyplníš obě čísla. Do začátku zápasu ho jde změnit nebo smazat. Netipnutý zápas tě nic nestojí.</p>`;
   }
   if (sub === "res") {
     const gs = Object.entries(S.bob?.games || {}).sort((a, b) => b[1].s.localeCompare(a[1].s)).slice(0, 40);

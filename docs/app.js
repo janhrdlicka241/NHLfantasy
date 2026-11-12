@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, doc, collection, onSnapshot, query, where, orderBy, limit, setDoc, addDoc, updateDoc, serverTimestamp, Timestamp }
+import { getFirestore, doc, collection, onSnapshot, query, where, orderBy, limit, setDoc, addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 import * as V from "./views.js";
@@ -100,6 +100,12 @@ document.getElementById("view").addEventListener("click", async (e) => {
   else if (a === "stat") U.stat = t.dataset.k;
   else if (a === "vyuk") U.vyuK = t.dataset.k;
   else if (a === "bsub") U.bsub = t.dataset.k;
+  else if (a === "tipdel") {
+    const gid = t.dataset.id, me = U.me;
+    if (t.dataset.start <= new Date().toISOString()) { alert2("Zápas už začal, tip nejde smazat."); return; }
+    try { await deleteDoc(doc(db, "tips", `${gid}_${me}`)); delete U.tipDraft?.[`${me}|${gid}`]; } catch (er) { alert2(`Tip se nesmazal: ${er.message}`); }
+    render(); return;
+  }
   else if (a === "bmonth") U.bmonth = t.dataset.k;
   else if (a === "bpaid") { const k = t.dataset.m; try { await setDoc(doc(db, "bobovkaPaid", k), { paid: !S.bpaid?.[k]?.paid }); } catch (er) { alert2(er.message); } return; }
   else if (a === "pcard") { e.stopPropagation(); U.card = +t.dataset.id; }
@@ -148,7 +154,7 @@ async function saveTip(inp) {
   if (box.dataset.start <= new Date().toISOString()) { alert2("Zápas už začal, tip nejde uložit."); return; }
   const gid = Number(box.dataset.gid);
   const me = U.me;
-  try { await setDoc(doc(db, "tips", `${gid}_${me}`), { gameId: gid, owner: me, a: A, h: H, start: box.dataset.start, ts: serverTimestamp() }); delete U.tipDraft?.[`${me}|${gid}`]; render(); }
+  try { await setDoc(doc(db, "tips", `${gid}_${me}`), { gameId: gid, owner: me, a: A, h: H, start: box.dataset.start, sm: Date.parse(box.dataset.start), ts: serverTimestamp() }); delete U.tipDraft?.[`${me}|${gid}`]; render(); }
   catch (er) { alert2(`Tip se neuložil: ${er.message}`); }
 }
 document.getElementById("pcardOv").addEventListener("click", (e) => {
