@@ -19,7 +19,10 @@ const ago = (iso) => { const h = (Date.now() - Date.parse(iso)) / 36e5; return h
 const short = (n) => String(n).split(" ").slice(-1)[0];
 
 const col = (S, o) => S.league?.colors?.[o] || "#475569";
-export const ownChip = (S, o) => o ? `<span class="chip oc" style="background:${col(S, o)}">${esc(o)}</span>` : `<span class="tag free">VOLNÝ</span>`;
+// barva textu na barevném štítku: tmavá na světlých barvách (např. citrusová), jinak bílá
+const fg = (hex) => { const m = /^#?([0-9a-f]{6})$/i.exec(hex || ""); if (!m) return "#fff"; const n = parseInt(m[1], 16), L = 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255); return L > 160 ? "#1b2433" : "#fff"; };
+const chipStyle = (S, o) => `background:${col(S, o)};color:${fg(col(S, o))}`;
+export const ownChip = (S, o) => o ? `<span class="chip oc" style="${chipStyle(S, o)}">${esc(o)}</span>` : `<span class="tag free">VOLNÝ</span>`;
 
 // --- odvozená data ---
 export const openInj = (S, owner, slot) => S.injuries.find((i) => i.active && i.owner === owner && i.slot === slot);
@@ -128,7 +131,7 @@ export function vDen(S, U) {
   const seg = `<div class="seg"><button class="btn ${mode === "past" ? "pri" : ""}" data-act="games" data-k="past">Odehrané</button><button class="btn ${mode === "next" ? "pri" : ""}" data-act="games" data-k="next">Nadcházející</button></div>`;
   const isOpen = (g) => U.openG?.has(String(g.id));
   const chipsPts = (pl) => { const per = {}; for (const e of pl || []) per[e.owner] = (per[e.owner] || 0) + e.pts;
-    return Object.entries(per).sort((x, y) => y[1] - x[1]).map(([o, p]) => `<span class="oc2" style="background:${col(S, o)}">${esc(o)} +${p}</span>`).join(""); };
+    return Object.entries(per).sort((x, y) => y[1] - x[1]).map(([o, p]) => `<span class="oc2" style="${chipStyle(S, o)}">${esc(o)} +${p}</span>`).join(""); };
   // rozdělení: zápasy s našimi hráči (nebo rozkliknuté) přes celou šířku, ostatní po dvou
   const split = (gs, ours) => [gs.filter((g) => ours(g) || isOpen(g)), gs.filter((g) => !ours(g) && !isOpen(g))];
   if (mode === "past") {
@@ -168,7 +171,7 @@ export function vDen(S, U) {
     (groups[k] ||= []).push({ d, ...g, pl: [...(byTeam.get(g.away) || []), ...(byTeam.get(g.home) || [])] });
   }
   const head = (g, mini) => `<div class="g1h" data-act="gopen" data-id="${g.id}" role="button"><span class="tm2">${fTime(g.d)}</span><span class="sc">${g.away} <span class="at">@</span> ${g.home}</span>
-    ${mini ? "" : `<span class="who">${[...new Set(g.pl.map((p) => p.own))].map((o) => `<span class="oc2" style="background:${col(S, o)}">${esc(o)}</span>`).join("")}</span>`}<span class="ar">${isOpen(g) ? "▾" : "▸"}</span></div>`;
+    ${mini ? "" : `<span class="who">${[...new Set(g.pl.map((p) => p.own))].map((o) => `<span class="oc2" style="${chipStyle(S, o)}">${esc(o)}</span>`).join("")}</span>`}<span class="ar">${isOpen(g) ? "▾" : "▸"}</span></div>`;
   const body = (g) => `${g.pl.length ? `<div class="gp">${g.pl.map((p) => `<span class="who2"><span class="pos ${p.pos}">${POSL[p.pos]}</span> ${pc(p.id, esc(short(p.n)))} <span class="nhl">${p.t}</span> ${ownChip(S, p.own)}</span>`).join("")}</div>` : ""}${nextOpen(S, U, g)}`;
   return `<div class="dayhead"><h2>Zápasy</h2><span class="tname">časy v našem čase</span></div>${seg}
   ${Object.keys(groups).length ? Object.entries(groups).map(([day, gs]) => { const [big, small] = split(gs, (g) => g.pl.length);

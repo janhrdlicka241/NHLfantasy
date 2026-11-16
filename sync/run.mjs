@@ -59,6 +59,11 @@ async function sync(fs) {
   L.applyPicks(st, idx, now);
   L.applyDeadlines(st, idx, now);
   const retroOwners = L.prepareRetro(st, RETRO);
+  // barvy majitelů se berou ze seed/league.json (změna barvy = úprava souboru)
+  try {
+    const colors = JSON.parse(readFileSync(new URL("../seed/league.json", import.meta.url))).league?.colors;
+    if (colors && !DRY && JSON.stringify(colors) !== JSON.stringify(st.league?.colors || {})) { await fs.doc("config/league").set({ colors }, { merge: true }); console.log("Barvy majitelů aktualizovány."); }
+  } catch (e) { console.log("Barvy:", e.message); }
   let manual = {};
   try { manual = JSON.parse(readFileSync(new URL("../seed/manual.json", import.meta.url))); } catch { console.log("seed/manual.json nenalezen – bez ručních úprav."); }
   L.applyManualPre(st, manual, idx, retroOwners, now);
