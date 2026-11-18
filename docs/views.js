@@ -97,7 +97,7 @@ function setupAlert(S, U) {
     <div class="nb"><b>Ještě nemáš sestavu</b><div class="tname">Vyber si 3 útočníky, obránce a brankáře v záložce Týmy.</div></div><span class="go">Týmy ›</span></div>`;
 }
 export function vTabulka(S, U) {
-  const mk = U.month, s = standings(S, mk), L = s[0]?.pts || 0;
+  const mk = U.month, s = standings(S, mk), L = s[0]?.pts || 0, lt = liveTotals(S);
   if (!s.length) return `<div class="panel empty">Liga ještě není založená.</div>`;
   return setupAlert(S, U) + vAlert(S, U) + `<div class="summary">
     <div class="panel stat"><div class="k">Vede ${monthLabel(mk).split(" ")[0].toLowerCase()}</div><div class="v">${L ? esc(s.filter((x) => x.leader).map((x) => x.owner).join(", ")) : "–"}</div><div class="s">${L ? `${L} bodů · ${signKc(s[0].bal)}` : "zatím nikdo nebodoval"}</div></div>
@@ -110,7 +110,7 @@ export function vTabulka(S, U) {
       <td class="rank">${i + 1}</td>
       <td><button class="nm"><span class="own">${esc(x.owner)}</span> <span class="car">${o ? "▾" : "▸"}</span></button></td>
       <td class="hide-sm" style="width:26%"><div class="bar"><i style="width:${L ? (x.pts / L) * 100 : 0}%"></i></div></td>
-      <td class="num pts">${x.pts}</td>
+      <td class="num pts">${x.pts}${lt[x.owner] && mk === nyDate().slice(0, 7) ? ` <span class="livep" title="průběžně v běžících zápasech">+${lt[x.owner]}</span>` : ""}</td>
       <td class="num">${x.leader ? '<span class="chip win">lídr</span>' : "−" + x.gap}</td>
       <td class="num ${balCls(x.bal)}"><b>${signKc(x.bal)}</b></td></tr>
       ${o ? `<tr class="sub"><td></td><td colspan="5">${x.players.length ? `<table class="mini"><tbody>${x.players.map((p) => `<tr>
@@ -136,7 +136,7 @@ export function vDen(S, U) {
   const split = (gs, ours) => [gs.filter((g) => ours(g) || isOpen(g)), gs.filter((g) => !ours(g) && !isOpen(g))];
   if (mode === "past") {
     const days = Object.entries(S.results?.days || {}).sort((a, b) => b[0].localeCompare(a[0]));
-    if (!days.length) return `<div class="dayhead"><h2>Zápasy</h2></div>${seg}<div class="panel empty">Výsledky se načtou při další synchronizaci.</div>`;
+    if (!days.length) return `<div class="dayhead"><h2>Zápasy</h2></div>${seg}${vLive(S, U)}<div class="panel empty">Výsledky se načtou při další synchronizaci.</div>`;
     const head = (g, mini) => { const win = g.as > g.hs ? "a" : g.hs > g.as ? "h" : "", op = isOpen(g);
       return `<div class="g1h" data-act="gopen" data-id="${g.id}" role="button"><span class="sc"><span class="${win === "a" ? "" : "lose"}">${g.away}</span> ${g.as ?? "–"}:${g.hs ?? "–"} <span class="${win === "h" ? "" : "lose"}">${g.home}</span>${g.last === "OT" ? ' <span class="ot">pp</span>' : g.last === "SO" ? ' <span class="ot">sn</span>' : ""}</span>
         ${mini ? "" : `<span class="who">${chipsPts(g.pl)}</span>`}<span class="ar">${op ? "▾" : "▸"}</span></div>`; };
@@ -149,7 +149,7 @@ export function vDen(S, U) {
           <span class="gname">${pc(e.id, esc(short(e.name)))} <span class="nhl">${e.team}</span></span><span class="tname">${statTxt(e)}</span>
           ${ownChip(S, e.owner)}<b class="gpts ${e.pts ? "" : "zero"}">${e.pts ? "+" + e.pts : "0"}</b></div>`).join("")}</div>` : ""}
         ${pastOpen(S, U, g)}`; };
-    return `<div class="dayhead"><h2>Zápasy</h2><span class="tname">datum podle času NHL</span></div>${seg}
+    return `<div class="dayhead"><h2>Zápasy</h2><span class="tname">datum podle času NHL</span></div>${seg}${vLive(S, U)}
     ${days.map(([date, gs]) => {
       const per = {}; for (const g of gs) for (const e of g.pl || []) per[e.owner] = (per[e.owner] || 0) + e.pts;
       const sums = Object.entries(per).sort((a, b) => b[1] - a[1]);
@@ -173,7 +173,7 @@ export function vDen(S, U) {
   const head = (g, mini) => `<div class="g1h" data-act="gopen" data-id="${g.id}" role="button"><span class="tm2">${fTime(g.d)}</span><span class="sc">${g.away} <span class="at">@</span> ${g.home}</span>
     ${mini ? "" : `<span class="who">${[...new Set(g.pl.map((p) => p.own))].map((o) => `<span class="oc2" style="${chipStyle(S, o)}">${esc(o)}</span>`).join("")}</span>`}<span class="ar">${isOpen(g) ? "▾" : "▸"}</span></div>`;
   const body = (g) => `${g.pl.length ? `<div class="gp">${g.pl.map((p) => `<span class="who2"><span class="pos ${p.pos}">${POSL[p.pos]}</span> ${pc(p.id, esc(short(p.n)))} <span class="nhl">${p.t}</span> ${ownChip(S, p.own)}</span>`).join("")}</div>` : ""}${nextOpen(S, U, g)}`;
-  return `<div class="dayhead"><h2>Zápasy</h2><span class="tname">časy v našem čase</span></div>${seg}
+  return `<div class="dayhead"><h2>Zápasy</h2><span class="tname">časy v našem čase</span></div>${seg}${vLive(S, U)}
   ${Object.keys(groups).length ? Object.entries(groups).map(([day, gs]) => { const [big, small] = split(gs, (g) => g.pl.length);
     return `<h3 class="mh">${day}</h3>
     ${big.map((g) => `<div class="panel g1 ${isOpen(g) ? "open" : ""}">${head(g)}${isOpen(g) ? `<div class="g1b">${body(g)}</div>` : ""}</div>`).join("")}
@@ -700,7 +700,8 @@ export function vBobovka(S, U) {
     const live = (S.upcoming?.games || []).filter((g) => g.start <= now && !done.has(String(g.id)) && tipsOf(g.id).length);
     return `${head}
     <div class="jp"><div><small>Jackpot</small><div style="font-weight:700">${jp ? "bere první přesná trefa" : "zatím prázdný – nevyhrané banky se sčítají sem"}</div></div><b>${kcB(jp)}</b></div>
-    ${live.length ? `<h3 class="mh">Rozehrané – tipy všech</h3>${live.map((g) => `<div class="panel tg"><div class="tr"><span class="t">${g.away}</span><span class="tname">@</span><span class="t">${g.home}</span><span class="bank"><b>${kcB(tipsOf(g.id).length * 10)}</b>${tipWord(tipsOf(g.id).length)}</span></div>${chips(g, tipsOf(g.id).map((t) => [t.owner, `${t.a}:${t.h}`]))}</div>`).join("")}` : ""}
+    ${live.length ? `<h3 class="mh">Rozehrané – tipy všech</h3>${live.map((g) => { const lv = (S.live?.games || []).find((x) => x.id === g.id);
+      return `<div class="panel tg"><div class="tr"><span class="t">${g.away}</span>${lv ? `<span class="res">${lv.awayTeam?.score ?? 0} : ${lv.homeTeam?.score ?? 0}</span>` : '<span class="tname">@</span>'}<span class="t">${g.home}</span>${lv ? `<span class="lc">${esc(liveClock(lv))}</span>` : ""}<span class="bank"><b>${kcB(tipsOf(g.id).length * 10)}</b>${tipWord(tipsOf(g.id).length)}</span></div>${chips(g, tipsOf(g.id).map((t) => [t.owner, `${t.a}:${t.h}`]), lv && LIVE_STATES.has(lv.gameState) && !["OT", "SO"].includes(lv.periodDescriptor?.periodType) ? `${lv.awayTeam?.score ?? 0}:${lv.homeTeam?.score ?? 0}` : null)}</div>`; }).join("")}` : ""}
     ${Object.keys(groups).length ? Object.entries(groups).map(([day, gs]) => `<h3 class="mh">${day}</h3>${gs.map((g) => {
       const ts = tipsOf(g.id), my = ts.find((t) => t.owner === U.me), dr = U.tipDraft?.[`${U.me}|${g.id}`] || {};
       const va = dr.a ?? (my ? my.a : ""), vh = dr.h ?? (my ? my.h : "");
@@ -731,4 +732,60 @@ export function vBobovka(S, U) {
   ${rows.map((r, j) => `<tr><td class="rank">${j + 1}</td><td>${ownChip(S, r.o)}</td><td class="num">${r.tips}</td><td class="num"><b>${r.hits}</b></td><td class="num">${kcB(r.staked).replace(" Kč", "")}</td><td class="num">${kcB(r.won).replace(" Kč", "")}</td><td class="num bal ${r.bal > 0 ? "plus" : r.bal < 0 ? "owe" : ""}"><b>${sKcB(r.bal).replace(" Kč", "")}</b></td></tr>`).join("")}</tbody></table></div>
   <p class="note">Vsadil = tipy, jejichž peníze už někdo vyhrál (i přes jackpot). Peníze v jackpotu (${kcB(jp)}) se naúčtují, až ho někdo trefí.</p>
   ${bobSettle(S, mk, "Kdo komu platí")}`;
+}
+
+// --- v1.36: živé výsledky (data přes Cloudflare Worker, aplikace se ptá každých 30 s) ---
+const LIVE_STATES = new Set(["LIVE", "CRIT"]);
+// běžící zápasy + právě skončené, které sync ještě nezapočítal
+export function liveGames(S) {
+  const done = S.meta?.doneGames || {};
+  return (S.live?.games || []).filter((g) => LIVE_STATES.has(g.gameState) || ((g.gameState === "FINAL" || g.gameState === "OFF") && !done[String(g.id)] && !(S.results?.days && Object.values(S.results.days).flat().some((x) => x.id === g.id && x.sig))));
+}
+function activeMap(S) {
+  const m = new Map();
+  for (const [o, r] of Object.entries(S.rosters || {})) for (const sl of r.slots || []) { const a = activeOf(S, o, sl); if (a) m.set(a.id, { owner: o, pos: sl.pos }); }
+  return m;
+}
+const abbr = (t) => (typeof t === "string" ? t : t?.default || "");
+// živé body našich hráčů v zápase: { owner: { pts, list: [{id, name, g, a, pts}] } }
+export function livePts(S, g) {
+  const am = activeMap(S), per = {};
+  const add = (id, name, isGoal) => { const x = am.get(id); if (!x) return;
+    const p = isGoal ? (x.pos === "D" ? 3 : x.pos === "F" ? 2 : 0) : 1;
+    const o = (per[x.owner] ||= { pts: 0, list: {} }); o.pts += p;
+    const e = (o.list[id] ||= { id, name, g: 0, a: 0, pts: 0 }); if (isGoal) e.g++; else e.a++; e.pts += p; };
+  for (const gl of g.goals || []) {
+    add(gl.playerId, gl.name?.default || gl.lastName?.default || "", true);
+    for (const a of gl.assists || []) add(a.playerId, a.name?.default || "", false);
+  }
+  return per;
+}
+export function liveTotals(S) { const t = {}; for (const g of liveGames(S)) for (const [o, x] of Object.entries(livePts(S, g))) t[o] = (t[o] || 0) + x.pts; return t; }
+function liveClock(g) {
+  if (g.gameState === "FINAL" || g.gameState === "OFF") return `Konec${g.periodDescriptor?.periodType === "OT" ? " po prodl." : g.periodDescriptor?.periodType === "SO" ? " po nájezdech" : ""}`;
+  const pd = g.periodDescriptor || {}, n = pd.number || g.period || 1;
+  const per = pd.periodType === "OT" ? "prodl." : pd.periodType === "SO" ? "nájezdy" : `${n}. tř.`;
+  if (g.clock?.inIntermission) return `přestávka po ${n}. tř.`;
+  return `${per} ${g.clock?.timeRemaining || ""}`.trim();
+}
+export function vLive(S, U) {
+  const gs = liveGames(S); if (!gs.length) return "";
+  const am = activeMap(S);
+  const rows = gs.map((g) => ({ g, per: livePts(S, g) }))
+    .sort((a, b) => Object.keys(b.per).length - Object.keys(a.per).length);
+  return `<div class="livebox"><h3 class="mh"><span class="ldot"></span> Živě</h3>
+  ${rows.map(({ g, per }) => { const a = g.awayTeam || {}, h = g.homeTeam || {}, fin = !LIVE_STATES.has(g.gameState);
+    const nm = (id, n) => { const x = am.get(id); return pc(id, x ? `<span class="ours" style="--oc:${col(S, x.owner)}">${esc(n)}</span>` : esc(n)); };
+    return `<div class="panel lg ${fin ? "fin" : ""}">
+      <div class="lgh"><span class="t">${esc(a.abbrev)}</span><span class="ls">${a.score ?? 0} : ${h.score ?? 0}</span><span class="t">${esc(h.abbrev)}</span>
+        <span class="lc">${fin ? "" : '<span class="ldot"></span> '}${esc(liveClock(g))}</span></div>
+      ${Object.keys(per).length ? `<div class="who lw">${Object.entries(per).sort((x, y) => y[1].pts - x[1].pts).map(([o, x]) => `<span class="oc2" style="${chipStyle(S, o)}">${esc(o)} +${x.pts}</span>`).join("")}</div>` : ""}
+      ${g.goals?.length ? `<div class="goals">${g.goals.map((gl) => { const pd = gl.periodDescriptor || {}, n = pd.number || gl.period;
+        const k = gl.goalModifier === "empty-net" ? "prázdná brána" : gl.strength === "pp" ? "přesilovka" : gl.strength === "sh" ? "oslabení" : "";
+        const our = [gl.playerId, ...(gl.assists || []).map((x) => x.playerId)].some((id) => am.has(id));
+        return `<div class="goal"><span class="gtime">${pd.periodType === "OT" ? "prodl." : pd.periodType === "SO" ? "SN" : n + ". tř."} ${esc(gl.timeInPeriod || "")}</span><span class="gteam ${abbr(gl.teamAbbrev) === h.abbrev ? "home" : ""}">${esc(abbr(gl.teamAbbrev))}</span>
+          <span class="gwho"><b>${nm(gl.playerId, gl.name?.default || "")}</b>${gl.assists?.length ? ` <span class="tname">(${gl.assists.map((x) => nm(x.playerId, x.name?.default || "")).join(", ")})</span>` : ""}${k ? ` <span class="chip">${k}</span>` : ""}</span>
+          ${gl.highlightClipSharingUrl ? `<a class="vid ${our ? "our" : ""}" href="${esc(gl.highlightClipSharingUrl)}" target="_blank" rel="noopener">▶</a>` : ""}</div>`; }).join("")}</div>` : `<div class="tname">Zatím bez gólu.</div>`}
+      ${a.sog != null ? `<div class="tname">Střely ${a.sog} : ${h.sog}</div>` : ""}</div>`; }).join("")}
+  <p class="note">Obnovuje se samo každých 30 s. Body jsou průběžné – započítají se po skončení zápasu.</p></div>`;
 }

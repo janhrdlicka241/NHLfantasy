@@ -10,7 +10,7 @@ const norm = (o) => Array.isArray(o) ? o.map(norm) : o && typeof o === "object" 
   ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, norm(v)])) : iso(o);
 
 let raf = 0;
-const S = { league: null, rosters: {}, rosterPicks: {}, months: {}, injuries: [], picks: [], feed: [], pool: null, upcoming: null, results: null, meta: null, standings: null, form: null, lineups: null, bob: null, bpaid: {}, tips: [] };
+const S = { league: null, rosters: {}, rosterPicks: {}, months: {}, injuries: [], picks: [], feed: [], pool: null, upcoming: null, results: null, meta: null, standings: null, form: null, lineups: null, bob: null, bpaid: {}, tips: [], live: null };
 const store = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 const keep = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 const U = { me: store("fnhl-me"), month: null, tab: "tabulka", openT: new Set(), openM: new Set(), q: {}, sel: {}, slotOpen: null, pickOpen: null, sortK: "pts", onlyFree: false, openInj: new Set(), sortG: "w", allG: false, stat: "hr", stdV: "div", formN: 5, formFree: false, volPos: "F", volSort: "s" };
@@ -48,6 +48,7 @@ function draw() {
   const bd = document.getElementById("injBadge");
   if (U.tab === "zraneni") { U.seen = new Date().toISOString(); keep("fnhl-seen-" + U.me, U.seen); }
   else U.seen = store("fnhl-seen-" + U.me) || "";
+  const ld = document.getElementById("liveDot"); if (ld) ld.hidden = !V.liveGames(S).some((g) => g.gameState === "LIVE" || g.gameState === "CRIT");
   const mine = S.injuries.filter((x) => x.active && x.owner === U.me && x.needPick).length;
   const unread = S.feed.filter((f) => f.ts > U.seen).length;
   bd.textContent = mine || unread || ""; bd.classList.toggle("hot", mine > 0);
@@ -170,3 +171,25 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape" && U.card) 
 document.getElementById("view").addEventListener("input", (e) => { const t = e.target;
   if (t.classList.contains("tipin")) { const gid = t.closest("[data-gid]")?.dataset.gid; ((U.tipDraft ||= {})[`${U.me}|${gid}`] ||= {})[t.dataset.s] = t.value; return; } if (t.classList.contains("srch")) { U.q[t.dataset.ctx] = t.value; render(); } });
 render();
+
+// --- živé výsledky přes Cloudflare Worker ---
+const LIVE_URL = "https://nhl-live.janhrdlicka241.workers.dev";
+let liveTimer = 0;
+function liveSoon() { // hraje se teď, nebo zápas začal v posledních 5 hodinách / začne do 10 minut
+  const now = Date.now();
+  if ((S.live?.games || []).some((g) => g.gameState === "LIVE" || g.gameState === "CRIT")) return true;
+  return (S.upcoming?.games || []).some((g) => { const t = Date.parse(g.start); return t <= now + 10 * 6e4 && t >= now - 5 * 36e5; })
+    || Object.values(S.results?.days || {}).flat().some((g) => { const t = Date.parse(g.start); return t >= now - 5 * 36e5 && !S.meta?.doneGames?.[String(g.id)]; });
+}
+async function pollLive() {
+  clearTimeout(liveTimer);
+  if (document.visibilityState === "visible") {
+    try {
+      const r = await fetch(`${LIVE_URL}/score/now`, { cache: "no-store" });
+      if (r.ok) { const j = await r.json(); if (Array.isArray(j.games)) { S.live = { games: j.games, at: Date.now() }; render(); } }
+    } catch (e) { console.warn("Živé výsledky nedostupné:", e.message); }
+  }
+  liveTimer = setTimeout(pollLive, liveSoon() ? 30e3 : 5 * 60e3);
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") pollLive(); });
+pollLive();

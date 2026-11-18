@@ -305,3 +305,15 @@ div.mini .g1{margin:0}div.mini .g1.dim{opacity:.6}div.mini .g1h{padding:8px 10px
 .btr{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line)}.btr b{margin-left:auto}
 
 .tipx{margin-left:8px;border:1px solid var(--line);background:var(--surface);color:var(--red);border-radius:12px;padding:2px 8px;font-size:12px;font-weight:700;cursor:pointer}
+
+/* v1.36 živě */
+.ldot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--red);animation:lp 1.4s infinite;vertical-align:middle}
+@keyframes lp{0%,100%{opacity:1}50%{opacity:.35}}
+.livebox{margin-bottom:16px}
+.lg{padding:10px 12px;margin-bottom:8px;display:grid;gap:8px;border-left:4px solid var(--red)}
+.lg.fin{border-left-color:var(--line)}
+.lgh{display:flex;align-items:center;gap:10px}.lgh .t{font-family:var(--display);font-weight:800;font-size:20px}
+.lgh .ls{font-family:var(--display);font-weight:800;font-size:28px;line-height:1}
+.lc{margin-left:auto;font-size:13px;font-weight:700;color:var(--red);white-space:nowrap}.lg.fin .lc{color:var(--muted)}
+.lw{display:flex;gap:4px;flex-wrap:wrap}
+.livep{color:var(--good);font-size:14px;font-weight:800;margin-left:4px}
