@@ -48,7 +48,7 @@ export async function standings() {
 // Přesilovky a oslabení týmů (podle plného názvu – statistiky NHL nemají zkratky)
 export async function teamStats(seasonId) {
   const exp = encodeURIComponent(`seasonId=${seasonId} and gameTypeId=2`);
-  const j = await getJson(`${STATS}/team/summary?limit=-1&cayenneExp=${exp}`);
+  const j = await getJson(`${STATS}/team/summary?limit=100&cayenneExp=${exp}`);
   return (j.data || []).map((t) => ({ name: t.teamFullName, pp: t.powerPlayPct, pk: t.penaltyKillPct }));
 }
 // Střídání hráčů (pro spočítání formací) a videa k zápasu
@@ -60,17 +60,30 @@ export async function teamGamesPlayed() {
 
 const lastTeam = (s) => (s || "").split(",").pop().trim();
 // Všichni hráči sezóny se statistikami
+// Statistiky NHL vrací najednou jen omezený počet řádků (limit=-1 už nefunguje) – stahujeme po stránkách
+const SORT_ID = encodeURIComponent(JSON.stringify([{ property: "playerId", direction: "ASC" }]));
+export async function statsAll(path, exp, tries) {
+  const out = [], seen = new Set(), PAGE = 100;
+  for (let start = 0; start < 5000; start += PAGE) {
+    const j = await getJson(`${STATS}/${path}?start=${start}&limit=${PAGE}&sort=${SORT_ID}&cayenneExp=${exp}`, tries);
+    const d = j.data || [];
+    for (const r of d) { const k = r.playerId ?? r.teamId ?? JSON.stringify(r); if (!seen.has(k)) { seen.add(k); out.push(r); } }
+    if (d.length < PAGE || (j.total != null && out.length >= j.total)) break;
+  }
+  return { data: out };
+}
 export async function pool(seasonId) {
   const exp = encodeURIComponent(`seasonId=${seasonId} and gameTypeId=2`);
-  const sk = await getJson(`${STATS}/skater/summary?limit=-1&sort=points&cayenneExp=${exp}`);
-  const go = await getJson(`${STATS}/goalie/summary?limit=-1&sort=wins&cayenneExp=${exp}`);
+  const sk = await statsAll("skater/summary", exp);
+  const go = await statsAll("goalie/summary", exp);
+  console.log(`Statistiky NHL: ${sk.data.length} hráčů v poli, ${go.data.length} brankářů`);
   // národnost (bios) a nováčci – nepovinné, když selžou, jede se bez nich
   const nat = new Map(), rook = new Set();
   for (const kind of ["skater", "goalie"]) {
-    try { const b = await getJson(`${STATS}/${kind}/bios?limit=-1&cayenneExp=${exp}`, 2); for (const p of b.data || []) if (p.nationalityCode) nat.set(p.playerId, p.nationalityCode); }
+    try { const b = await statsAll(`${kind}/bios`, exp, 2); for (const p of b.data || []) if (p.nationalityCode) nat.set(p.playerId, p.nationalityCode); }
     catch (e) { console.log(`Národnost (${kind}):`, e.message); }
   }
-  try { const r = await getJson(`${STATS}/skater/summary?limit=-1&cayenneExp=${encodeURIComponent(`seasonId=${seasonId} and gameTypeId=2 and isRookie='1'`)}`, 2); for (const p of r.data || []) rook.add(p.playerId); }
+  try { const r = await statsAll("skater/summary", encodeURIComponent(`seasonId=${seasonId} and gameTypeId=2 and isRookie='1'`), 2); for (const p of r.data || []) rook.add(p.playerId); }
   catch (e) { console.log("Nováčci:", e.message); }
   console.log(`Národnost: ${nat.size} hráčů, nováčků: ${rook.size}`);
   return {
