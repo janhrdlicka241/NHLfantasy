@@ -137,3 +137,21 @@ export async function translate(items) {
   return (await r.json()).items || [];
 }
 export const LIVE_WORKER = "https://nhl-live.janhrdlicka241.workers.dev";
+
+// Novinky NHL.com (obsahové API NHL); vynecháme každodenní předzápasové sestavy, kterých je moc
+export async function nhlNews(limit = 40) {
+  const j = await getJson(`https://forge-dapi.d3.nhle.com/v2/content/en-us/stories?tags.slug=nhl&$limit=${limit}`, 2);
+  return (j.items || []).filter((x) => x.slug && x.headline)
+    .filter((x) => !(x.tags || []).some((t) => t.slug === "game-preview" || t.slug === "lineup"))
+    .map((x) => {
+      const firstPar = String(x.summary || "").split("\n").map((s) => s.trim()).find((s) => s.length > 30) || "";
+      const tpl = x.thumbnail?.templateUrl || "";
+      return {
+        id: `nhl-${x._entityId || x.slug}`, te: x.headline, de: (x.fields?.description || firstPar).slice(0, 300),
+        url: `https://www.nhl.com/news/${x.slug}`, img: tpl ? tpl.replace("{formatInstructions}", "t_ratio16_9-size20") : (x.thumbnail?.thumbnailUrl || ""),
+        ts: x.contentDate || x.lastUpdatedDate || "", src: "NHL.com",
+        ath: (x.tags || []).filter((t) => t.externalSourceName === "player" && t.title).map((t) => t.title),
+        tm: (x.tags || []).filter((t) => t.externalSourceName === "team" && t.title).map((t) => t.title),
+      };
+    });
+}

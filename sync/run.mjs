@@ -226,7 +226,10 @@ async function sync(fs) {
   try {
     const nSnap = await fs.doc("public/news").get();
     const old = new Map(((nSnap.exists && nSnap.data().items) || []).map((x) => [x.id, x]));
-    const fresh = await nhl.espnNews(40);
+    const fresh = [];
+    for (const [name, fn] of [["ESPN", () => nhl.espnNews(30)], ["NHL.com", () => nhl.nhlNews(40)]]) {
+      try { const x = await fn(); fresh.push(...x); console.log(`Novinky ${name}: ${x.length}`); } catch (e) { console.log(`Novinky ${name}:`, e.message); }
+    }
     const items = fresh.map((x) => ({ ...x, t: old.get(x.id)?.t || "", d: old.get(x.id)?.d || "" }));
     const todo = items.filter((x) => !x.t).slice(0, 20);
     for (let i = 0; i < todo.length; i += 10) {
@@ -236,7 +239,7 @@ async function sync(fs) {
       } catch (e) { console.log("Novinky – překlad:", e.message); break; }
     }
     items.sort((a, b) => String(b.ts).localeCompare(String(a.ts)));
-    news = items.slice(0, 40);
+    news = items.slice(0, 50);
     console.log(`Novinky: ${news.length}, přeloženo ${news.filter((x) => x.t).length}`);
   } catch (e) { console.log("Novinky:", e.message); }
   const all = Object.values(days).flat();

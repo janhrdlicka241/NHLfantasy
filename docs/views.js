@@ -823,5 +823,5 @@ export function vNews(S, U) {
   ${ours.length ? `<div class="nlab">Týká se našich hráčů</div>${ours.map(card).join("")}` : ""}
   ${rest.length ? `${ours.length ? '<div class="nlab">Ostatní novinky</div>' : ""}${rest.map(card).join("")}` : ""}
   ${!list.length ? `<div class="panel empty">Nic tu není.</div>` : ""}
-  <p class="note">Kliknutím se otevře celý článek (anglicky). Zdroj ESPN, nové zprávy se načítají při každém syncu.</p>`;
+  <p class="note">Kliknutím se otevře celý článek (anglicky). Zdroje NHL.com a ESPN, nové zprávy se načítají při každém syncu.</p>`;
 }
