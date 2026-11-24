@@ -155,3 +155,22 @@ export async function nhlNews(limit = 40) {
       };
     });
 }
+
+// Spekulace a přesuny – RSS kanály ProHockeyRumors a Daily Faceoff
+const unent = (s) => String(s || "").replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/<[^>]+>/g, " ")
+  .replace(/&#8217;|&rsquo;/g, "’").replace(/&#8216;|&lsquo;/g, "‘").replace(/&#8220;|&ldquo;/g, "“").replace(/&#8221;|&rdquo;/g, "”").replace(/&#8211;|&ndash;/g, "–").replace(/&#8212;|&mdash;/g, "—")
+  .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n)).replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#039;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " ")
+  .replace(/\s+/g, " ").trim();
+export async function rssNews(url, src, limit = 25) {
+  const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (fantasy-nhl)" } });
+  if (!r.ok) throw new Error(`${src} ${r.status}`);
+  const xml = await r.text();
+  return [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].slice(0, limit).map(([, it]) => {
+    const tag = (n) => (it.match(new RegExp(`<${n}[^>]*>([\\s\\S]*?)<\\/${n}>`)) || [])[1] || "";
+    const link = unent(tag("link")), img = (it.match(/<media:content[^>]+url="([^"]+)"/) || it.match(/<enclosure[^>]+url="([^"]+)"/) || it.match(/<img[^>]+src="([^"]+)"/) || [])[1] || "";
+    const d = unent(tag("description")).replace(/\s*The post .*$/, "").replace(/\s*\[…\]\s*$|\s*\[&#8230;\]\s*$/, "…");
+    const ts = Date.parse(unent(tag("pubDate")));
+    return { id: `${src}-${link}`, te: unent(tag("title")), de: d.slice(0, 300), url: link, img, ts: isFinite(ts) ? new Date(ts).toISOString() : "", src,
+      cat: [...it.matchAll(/<category>([\s\S]*?)<\/category>/g)].map((m) => unent(m[1])).slice(0, 8), rum: true, ath: [], tm: [] };
+  }).filter((x) => x.te && x.url);
+}
