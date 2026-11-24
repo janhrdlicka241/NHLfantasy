@@ -808,21 +808,22 @@ export function newsTagged(S) {
 }
 const nAgo = (ts) => { const m = (Date.now() - Date.parse(ts)) / 6e4; if (!isFinite(m)) return ""; if (m < 60) return `před ${Math.max(1, Math.round(m))} min`; if (m < 24 * 60) return `před ${Math.round(m / 60)} h`; return new Date(ts).toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" }); };
 export function vNews(S, U) {
-  const all = newsTagged(S), f = U.newsF || "all";
+  const all = newsTagged(S), f = ["our", "nhl", "rum"].includes(U.newsF) ? U.newsF : "our";
   if (!all.length) return `<div class="dayhead"><h2>News</h2></div><div class="panel empty">Novinky se načtou při příští synchronizaci.</div>`;
   // spekulace (ProHockeyRumors, Daily Faceoff) jen ve vlastním filtru; o našich hráčích i v „Naši hráči“
-  const list = all.filter((x) => f === "rum" ? x.rum : f === "our" ? x.hits.length : x.rum ? false : f === "all" || x.kind);
+  // Naši = zprávy o hráčích někoho z nás ze všech zdrojů; NHL = NHL.com a ESPN; Spekulace = ProHockeyRumors a Daily Faceoff
+  const list = all.filter((x) => (f === "our" ? x.hits.length : f === "rum" ? x.rum : !x.rum));
   const card = (x) => { const o = x.hits[0]?.o;
     return `<a class="panel nw ${o ? "our" : ""}" style="--c:${o ? col(S, o) : "transparent"}" href="${esc(x.url)}" target="_blank" rel="noopener">
       ${x.img ? `<img class="nimg" src="${esc(x.img)}" alt="" loading="lazy">` : `<div class="nimg"></div>`}
       <div><h4>${esc(x.t || x.te)}</h4>${x.d || x.de ? `<p>${esc(x.d || x.de)}</p>` : ""}
       <div class="meta"><b>${esc(x.src)}</b> · ${nAgo(x.ts)}${x.rum && /rumor|rumou?r|interest|could|talks|linked|market|shopping|eyeing|targets?\b|speculat/i.test(`${x.te} ${x.de} ${(x.cat || []).join(" ")}`) && !/acquire[sd]?|traded|signs?|signed|claim(s|ed)|place[sd]? .* on waivers|clears? waivers/i.test(x.te) ? ' · <span class="tag spek">spekulace</span>' : ""}${x.kind === "inj" ? ' · <span class="tag inj">zranění</span>' : x.kind === "move" ? ' · <span class="chip">přestup</span>' : ""}
       ${[...new Map(x.hits.map((h) => [h.o + h.n, h])).values()].map((h) => `<span class="oc2" style="${chipStyle(S, h.o)}">${esc(h.o)}: ${esc(h.last)}</span>`).join("")}</div></div></a>`; };
-  const ours = list.filter((x) => x.hits.length), rest = list.filter((x) => !x.hits.length);
+  const ours = f === "our" ? list : list.filter((x) => x.hits.length), rest = f === "our" ? [] : list.filter((x) => !x.hits.length);
   return `<div class="dayhead"><h2>News</h2><span class="tname">novinky z NHL${all.some((x) => x.t) ? " · přeloženo AI" : ""}</span></div>
-  <div class="seg">${[["all", "Vše"], ["our", "Naši hráči"], ["kind", "Zranění a přestupy"], ["rum", "Spekulace"]].map(([k, l]) => `<button class="btn ${f === k ? "pri" : ""}" data-act="newsf" data-k="${k}">${l}</button>`).join("")}</div>
-  ${ours.length ? `<div class="nlab">Týká se našich hráčů</div>${ours.map(card).join("")}` : ""}
+  <div class="seg">${[["our", `Naši${all.some((x) => x.hits.length) ? ` (${all.filter((x) => x.hits.length).length})` : ""}`], ["nhl", "NHL"], ["rum", "Spekulace"]].map(([k, l]) => `<button class="btn ${f === k ? "pri" : ""}" data-act="newsf" data-k="${k}">${l}</button>`).join("")}</div>
+  ${ours.length ? `${f === "our" ? "" : '<div class="nlab">Týká se našich hráčů</div>'}${ours.map(card).join("")}` : ""}
   ${rest.length ? `${ours.length ? '<div class="nlab">Ostatní novinky</div>' : ""}${rest.map(card).join("")}` : ""}
-  ${!list.length ? `<div class="panel empty">Nic tu není.</div>` : ""}
-  <p class="note">Kliknutím se otevře celý článek (anglicky). ${f === "rum" ? "Spekulace a přesuny: ProHockeyRumors a Daily Faceoff." : "Zdroje NHL.com a ESPN; spekulace jsou ve vlastním filtru."} Nové zprávy se načítají při každém syncu.</p>`;
+  ${!list.length ? `<div class="panel empty">${f === "our" ? "Teď žádná zpráva o hráčích naší ligy." : "Nic tu není."}</div>` : ""}
+  <p class="note">Kliknutím se otevře celý článek (anglicky). ${f === "rum" ? "Spekulace a přesuny: ProHockeyRumors a Daily Faceoff." : f === "our" ? "Zprávy o hráčích naší ligy ze všech zdrojů (NHL.com, ESPN, ProHockeyRumors, Daily Faceoff)." : "Zdroje NHL.com a ESPN."} Nové zprávy se načítají při každém syncu.</p>`;
 }
