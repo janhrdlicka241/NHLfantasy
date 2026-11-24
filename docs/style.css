@@ -317,3 +317,11 @@ div.mini .g1{margin:0}div.mini .g1.dim{opacity:.6}div.mini .g1h{padding:8px 10px
 .lc{margin-left:auto;font-size:13px;font-weight:700;color:var(--red);white-space:nowrap}.lg.fin .lc{color:var(--muted)}
 .lw{display:flex;gap:4px;flex-wrap:wrap}
 .livep{color:var(--good);font-size:14px;font-weight:800;margin-left:4px}
+
+/* v1.39 News */
+a.nw{display:grid;grid-template-columns:96px 1fr;gap:10px;padding:10px;margin-bottom:8px;align-items:start;color:inherit;text-decoration:none}
+.nw.our{border-left:4px solid var(--c)}
+.nimg{width:96px;height:64px;border-radius:6px;object-fit:cover;background:linear-gradient(135deg,var(--navy),#457b9d)}
+.nw h4{margin:0 0 4px;font-size:15px;line-height:1.25}.nw p{margin:0;font-size:13px;color:var(--muted);line-height:1.35}
+.nw .meta{font-size:11px;color:var(--muted);margin-top:5px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.nlab{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:14px 2px 6px}

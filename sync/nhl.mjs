@@ -119,3 +119,21 @@ export async function espnInjuries() {
   }
   return out;
 }
+
+// Novinky ESPN o NHL (titulek, popis, fotka, odkaz, hráči a týmy, o kterých zpráva je)
+export async function espnNews(limit = 40) {
+  const j = await getJson(`https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/news?limit=${limit}`, 2);
+  return (j.articles || []).filter((a) => a.headline && a.links?.web?.href).map((a) => ({
+    id: String(a.id || a.dataSourceIdentifier || a.links.web.href), te: a.headline, de: a.description || "", url: a.links.web.href,
+    img: a.images?.[0]?.url || "", ts: a.published || a.lastModified || "", src: "ESPN",
+    ath: (a.categories || []).filter((c) => c.type === "athlete" && c.description).map((c) => c.description),
+    tm: (a.categories || []).filter((c) => c.type === "team" && c.description).map((c) => c.description),
+  }));
+}
+// překlad přes Cloudflare Worker s AI
+export async function translate(items) {
+  const r = await fetch(`${LIVE_WORKER}/translate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items }) });
+  if (!r.ok) throw new Error(`překlad ${r.status}: ${(await r.text()).slice(0, 120)}`);
+  return (await r.json()).items || [];
+}
+export const LIVE_WORKER = "https://nhl-live.janhrdlicka241.workers.dev";

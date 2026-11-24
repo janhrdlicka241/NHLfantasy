@@ -221,6 +221,24 @@ async function sync(fs) {
     bob = L.settleBobovka(bSnap.exists ? bSnap.data() : {}, tips, seasonList);
     console.log(`Bobovka: tipů ${tips.length}, vyhodnocených zápasů ${Object.keys(bob.games).length}, jackpot ${bob.jackpot} Kč`);
   } catch (e) { console.log("Bobovka:", e.message); }
+  // novinky (ESPN) + překlad do češtiny přes worker s AI; přeložené zprávy si pamatujeme
+  let news = null;
+  try {
+    const nSnap = await fs.doc("public/news").get();
+    const old = new Map(((nSnap.exists && nSnap.data().items) || []).map((x) => [x.id, x]));
+    const fresh = await nhl.espnNews(40);
+    const items = fresh.map((x) => ({ ...x, t: old.get(x.id)?.t || "", d: old.get(x.id)?.d || "" }));
+    const todo = items.filter((x) => !x.t).slice(0, 20);
+    for (let i = 0; i < todo.length; i += 10) {
+      try {
+        const tr = await nhl.translate(todo.slice(i, i + 10).map((x) => ({ id: x.id, t: x.te, d: x.de })));
+        for (const r of tr) { const x = items.find((y) => y.id === r.id); if (x && r.t) { x.t = r.t; x.d = r.d || ""; } }
+      } catch (e) { console.log("Novinky – překlad:", e.message); break; }
+    }
+    items.sort((a, b) => String(b.ts).localeCompare(String(a.ts)));
+    news = items.slice(0, 40);
+    console.log(`Novinky: ${news.length}, přeloženo ${news.filter((x) => x.t).length}`);
+  } catch (e) { console.log("Novinky:", e.message); }
   const all = Object.values(days).flat();
   console.log(`Zápasy za 7 dní: ${all.length}, gólů: ${all.reduce((t, g) => t + (g.goals?.length || 0), 0)}, nástupů našich hráčů: ${all.reduce((t, g) => t + (g.pl?.length || 0), 0)}`);
   const extra = {
@@ -228,6 +246,7 @@ async function sync(fs) {
     "public/pool": { ...L.encodePool(pool), updated: now },
     "public/upcoming": { games: upcoming.sort((a, b) => a.start.localeCompare(b.start)), updated: now },
     "public/results": { days, updated: now },
+    ...(news ? { "public/news": { items: news, updated: now } } : {}),
     "public/standings": { teams: table, form: L.teamForm(formGames), games: L.seasonGames(seasonList), ts, updated: now },
     "public/lineups": { g: lu.g, last: lastG, updated: now },
     ...(bob ? { "bobovka/state": { ...bob, updated: now } } : {}),

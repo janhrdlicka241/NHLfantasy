@@ -789,3 +789,39 @@ export function vLive(S, U) {
       ${a.sog != null ? `<div class="tname">Střely ${a.sog} : ${h.sog}</div>` : ""}</div>`; }).join("")}
   <p class="note">Obnovuje se samo každých 30 s. Body jsou průběžné – započítají se po skončení zápasu.</p></div>`;
 }
+
+// --- v1.39: News ---
+function ourPeople(S) { // hráči našich majitelů (základní i náhradníci) -> majitel
+  const m = [];
+  for (const [o, r] of Object.entries(S.rosters || {})) for (const sl of r.slots || []) for (const p of [sl.base, sl.sub]) if (p?.name) m.push({ o, n: p.name, k: normName(p.name), last: p.name.split(" ").slice(-1)[0] });
+  return m;
+}
+export function newsTagged(S) {
+  const ppl = ourPeople(S);
+  return (S.news?.items || []).map((x) => {
+    const ath = new Set((x.ath || []).map(normName)), txt = normName(`${x.te} ${x.de}`);
+    const hits = ppl.filter((p) => ath.has(p.k) || txt.includes(p.k));
+    const kind = /injur|injured|\bIR\b|out (for|indefinitely)|day-to-day|week-to-week|surgery|concussion|return/i.test(`${x.te} ${x.de}`) ? "inj"
+      : /trade|traded|acquire|waive|waiver|sign(s|ed)?\b|claim|recall|assign/i.test(`${x.te} ${x.de}`) ? "move" : "";
+    return { ...x, hits, kind };
+  });
+}
+const nAgo = (ts) => { const m = (Date.now() - Date.parse(ts)) / 6e4; if (!isFinite(m)) return ""; if (m < 60) return `před ${Math.max(1, Math.round(m))} min`; if (m < 24 * 60) return `před ${Math.round(m / 60)} h`; return new Date(ts).toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" }); };
+export function vNews(S, U) {
+  const all = newsTagged(S), f = U.newsF || "all";
+  if (!all.length) return `<div class="dayhead"><h2>News</h2></div><div class="panel empty">Novinky se načtou při příští synchronizaci.</div>`;
+  const list = all.filter((x) => f === "all" || (f === "our" ? x.hits.length : x.kind));
+  const card = (x) => { const o = x.hits[0]?.o;
+    return `<a class="panel nw ${o ? "our" : ""}" style="--c:${o ? col(S, o) : "transparent"}" href="${esc(x.url)}" target="_blank" rel="noopener">
+      ${x.img ? `<img class="nimg" src="${esc(x.img)}" alt="" loading="lazy">` : `<div class="nimg"></div>`}
+      <div><h4>${esc(x.t || x.te)}</h4>${x.d || x.de ? `<p>${esc(x.d || x.de)}</p>` : ""}
+      <div class="meta"><b>${esc(x.src)}</b> · ${nAgo(x.ts)}${x.kind === "inj" ? ' · <span class="tag inj">zranění</span>' : x.kind === "move" ? ' · <span class="chip">přestup</span>' : ""}
+      ${[...new Map(x.hits.map((h) => [h.o + h.n, h])).values()].map((h) => `<span class="oc2" style="${chipStyle(S, h.o)}">${esc(h.o)}: ${esc(h.last)}</span>`).join("")}</div></div></a>`; };
+  const ours = list.filter((x) => x.hits.length), rest = list.filter((x) => !x.hits.length);
+  return `<div class="dayhead"><h2>News</h2><span class="tname">novinky z NHL${all.some((x) => x.t) ? " · přeloženo AI" : ""}</span></div>
+  <div class="seg">${[["all", "Vše"], ["our", "Naši hráči"], ["kind", "Zranění a přestupy"]].map(([k, l]) => `<button class="btn ${f === k ? "pri" : ""}" data-act="newsf" data-k="${k}">${l}</button>`).join("")}</div>
+  ${ours.length ? `<div class="nlab">Týká se našich hráčů</div>${ours.map(card).join("")}` : ""}
+  ${rest.length ? `${ours.length ? '<div class="nlab">Ostatní novinky</div>' : ""}${rest.map(card).join("")}` : ""}
+  ${!list.length ? `<div class="panel empty">Nic tu není.</div>` : ""}
+  <p class="note">Kliknutím se otevře celý článek (anglicky). Zdroj ESPN, nové zprávy se načítají při každém syncu.</p>`;
+}

@@ -14,7 +14,7 @@ const S = { league: null, rosters: {}, rosterPicks: {}, months: {}, injuries: []
 const store = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 const keep = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 const U = { me: store("fnhl-me"), month: null, tab: "tabulka", openT: new Set(), openM: new Set(), q: {}, sel: {}, slotOpen: null, pickOpen: null, sortK: "pts", onlyFree: false, openInj: new Set(), sortG: "w", allG: false, stat: "hr", stdV: "div", formN: 5, formFree: false, volPos: "F", volSort: "s" };
-const TABS = ["tabulka", "den", "bobovka", "tymy", "zraneni", "nhl", "vyuctovani"];
+const TABS = ["tabulka", "den", "news", "bobovka", "tymy", "zraneni", "nhl", "vyuctovani"];
 const h = (location.hash || "").slice(1); if (TABS.includes(h)) U.tab = h;
 
 // --- živá data ---
@@ -22,7 +22,7 @@ const one = (path, key) => onSnapshot(doc(db, path), (d) => { S[key] = d.exists(
 const map = (col, key) => onSnapshot(collection(db, col), (q) => { S[key] = Object.fromEntries(q.docs.map((d) => [d.id, norm(d.data())])); render(); }, err);
 const list = (qq, key) => onSnapshot(qq, (q) => { S[key] = q.docs.map((d) => ({ ...norm(d.data()), id: d.id })); render(); }, err);
 function err(e) { console.error(e); document.getElementById("view").innerHTML = `<div class="panel empty">Nepodařilo se načíst data (${V.esc(e.code || e.message)}). Zkontroluj firebase-config.js a pravidla Firestore.</div>`; }
-one("config/league", "league"); one("public/pool", "pool"); one("public/upcoming", "upcoming"); one("public/results", "results"); one("meta/state", "meta"); one("public/standings", "standings"); one("public/form", "form"); one("public/lineups", "lineups"); one("bobovka/state", "bob"); map("bobovkaPaid", "bpaid");
+one("config/league", "league"); one("public/pool", "pool"); one("public/upcoming", "upcoming"); one("public/results", "results"); one("meta/state", "meta"); one("public/standings", "standings"); one("public/form", "form"); one("public/lineups", "lineups"); one("bobovka/state", "bob"); one("public/news", "news"); map("bobovkaPaid", "bpaid");
 list(query(collection(db, "tips"), where("start", ">=", new Date(Date.now() - 4 * 864e5).toISOString())), "tips");
 map("rosters", "rosters"); map("rosterPicks", "rosterPicks"); map("months", "months");
 list(collection(db, "injuries"), "injuries"); // všechna – aktivní i ukončená (kvůli kontrole zápasů)
@@ -49,12 +49,16 @@ function draw() {
   if (U.tab === "zraneni") { U.seen = new Date().toISOString(); keep("fnhl-seen-" + U.me, U.seen); }
   else U.seen = store("fnhl-seen-" + U.me) || "";
   const ld = document.getElementById("liveDot"); if (ld) ld.hidden = !V.liveGames(S).some((g) => g.gameState === "LIVE" || g.gameState === "CRIT");
+  // odznak News: nové zprávy o našich hráčích od poslední návštěvy
+  const nb = document.getElementById("newsBadge");
+  if (nb) { if (U.tab === "news") keep("fnhl-news-" + U.me, new Date().toISOString());
+    const seenN = store("fnhl-news-" + U.me) || ""; const n = V.newsTagged(S).filter((x) => x.hits.length && x.ts > seenN).length; nb.textContent = U.tab === "news" ? "" : n || ""; }
   const mine = S.injuries.filter((x) => x.active && x.owner === U.me && x.needPick).length;
   const unread = S.feed.filter((f) => f.ts > U.seen).length;
   bd.textContent = mine || unread || ""; bd.classList.toggle("hot", mine > 0);
   // zachovat fokus ve vyhledávání
   const f = document.activeElement, fid = f?.id, pos = f?.selectionStart;
-  const view = { tabulka: V.vTabulka, den: V.vDen, bobovka: V.vBobovka, tymy: V.vTymy, zraneni: V.vZraneni, nhl: V.vNhl, vyuctovani: V.vVyuct }[U.tab];
+  const view = { tabulka: V.vTabulka, den: V.vDen, news: V.vNews, bobovka: V.vBobovka, tymy: V.vTymy, zraneni: V.vZraneni, nhl: V.vNhl, vyuctovani: V.vVyuct }[U.tab];
   document.getElementById("view").innerHTML = S.league ? view(S, U) : `<div class="panel empty">Liga ještě není založená – spusť na GitHubu workflow „NHL data“ v režimu seed.</div>`;
   if (fid) { const n = document.getElementById(fid); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch {} } }
   document.getElementById("pcardOv").innerHTML = U.card ? V.vCard(S, U.card) : "";
@@ -101,6 +105,7 @@ document.getElementById("view").addEventListener("click", async (e) => {
   else if (a === "stat") U.stat = t.dataset.k;
   else if (a === "vyuk") U.vyuK = t.dataset.k;
   else if (a === "bsub") U.bsub = t.dataset.k;
+  else if (a === "newsf") U.newsF = t.dataset.k;
   else if (a === "tipdel") {
     const gid = t.dataset.id, me = U.me;
     if (t.dataset.start <= new Date().toISOString()) { alert2("Zápas už začal, tip nejde smazat."); return; }
