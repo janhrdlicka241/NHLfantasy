@@ -40,6 +40,6 @@ const r = docs.get("rosters/Šráma");
 console.log("locked", r.locked, r.slots.map((s) => `${s.key}:${s.base.name} ${s.games}/82`).join(" "));
 const mk = y(-1).slice(0, 7);
 console.log("měsíc", mk, JSON.stringify(docs.get("months/" + mk)?.owners?.["Šráma"]));
-console.log("upcoming", docs.get("public/upcoming").games.length, "recent", JSON.stringify(docs.get("public/recent").days));
+console.log("upcoming", docs.get("public/upcoming").games.length, "recent", JSON.stringify(Object.keys(docs.get("public/results")?.days || {})));
 console.log("feed", [...docs].filter(([p]) => p.startsWith("feed/")).map(([, d]) => d.txt));
 console.log("říjen zachován", docs.get("months/2026-10").owners["Svatý"].pts);

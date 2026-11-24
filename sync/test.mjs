@@ -332,3 +332,31 @@ console.log("✓ začátek sezóny v září");
   const w = r2.months["2026-11"].owners; assert.equal(Math.round((w.A.won + w.B.won + w.C.won) * 100) / 100, 40);
   console.log("✓ Bobovka");
 }
+
+// v1.38: dokud se základní hráč nevrátil, počítá se každý zápas náhradníka (Makar / Sergačov)
+{
+  const b = (ids) => L.parseGame({ playerByGameStats: { awayTeam: { forwards: [], defense: ids.map((id) => ({ playerId: id })), goalies: [] }, homeTeam: { forwards: [], defense: [], goalies: [] } } }, land([]));
+  const s = L.newState({ rosters: { H: { owner: "H", locked: true, slots: [{ key: "D1", pos: "D", base: { id: 8, name: "Cale Makar", team: "COL" }, sub: null, games: 10, activeFrom: "2026-09-01T00:00:00Z", baseMissed: 0, subMissed: 0 }] } } });
+  const sl = s.rosters.H.slots[0];
+  const day = (d) => `2026-11-${String(d).padStart(2, "0")}`;
+  const gm = (d, team) => ({ id: d * 10 + team.length, date: day(d), start: `${day(d)}T23:00:00Z`, away: team, home: "XXX" });
+  L.processGame(s, gm(14, "COL"), b([]), "2026-11-15T06:00:00Z");
+  const inj = s.injuries.find((i) => i.active);
+  s.picks.push({ id: "p", injuryId: inj.id, owner: "H", playerId: 98, name: "Mikhail Sergachev", status: "pending", createdAt: "2026-11-15T07:00:00Z" });
+  const idx2 = new Map([...idx, [98, { id: 98, name: "Mikhail Sergachev", team: "UTA", pos: "D" }]]);
+  L.applyPicks(s, idx2, "2026-11-15T08:00:00Z");
+  assert.equal(sl.sub?.name, "Mikhail Sergachev");
+  for (const d of [16, 17, 18]) L.processGame(s, gm(d, "UTA"), b([98]), "x"); // Utah hraje 3×, Colorado mezitím ne
+  assert.equal(inj.subList.length, 3, "všechny 3 zápasy Sergačova zapsané, i když v bance byl jen 1");
+  assert.equal(sl.bank, -2);
+  L.processGame(s, gm(19, "COL"), b([8]), "x"); // Makar zpět → Sergačov končí
+  assert.ok(!inj.active && !sl.sub, "po návratu Makara Sergačov končí");
+  // zpětné doplnění: zablokovaný zápas se dopočítá
+  const s2 = L.newState({ rosters: { H: { owner: "H", locked: true, slots: [{ key: "D1", pos: "D", base: { id: 8, name: "Cale Makar", team: "COL" }, sub: { id: 98, name: "Mikhail Sergachev", team: "UTA", since: "2026-11-15T08:00:00Z" }, games: 10, activeFrom: "2026-09-01T00:00:00Z", bank: 0, bankInit: true }] } },
+    injuries: [{ id: "i1", owner: "H", slot: "D1", active: true, bankMode: true, baseBack: false, subList: [{ id: 163, d: day(16) }] }] });
+  const c = L.subCatchUp(s2, [gm(16, "UTA"), gm(21, "UTA"), gm(12, "UTA")]);
+  assert.deepEqual(c.map((x) => x.game.date), [day(21)], "doplní se jen chybějící zápas po výběru náhradníka");
+  L.applyCatchUp(s2, c[0], b([98]));
+  assert.equal(s2.injuries[0].subList.length, 2); assert.equal(s2.rosters.H.slots[0].bank, -1);
+  console.log("✓ v1.38: náhradník hraje celou dobu zranění + doplnění");
+}

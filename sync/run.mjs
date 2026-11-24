@@ -112,6 +112,16 @@ async function sync(fs) {
     if (redo.size) L.processGame(st, g, parsed, now, { only: new Set(redo.keys()), slots: redo, quiet, later: laterR });
   }
   if (retroGames.length) console.log(`Zpětně přepočteno zápasů: ${retroGames.length}`);
+  // v1.38: doplnit zápasy náhradníků, které zablokovalo staré pravidlo banky (jen dosud odehrané, ne ty, které se zpracují teď)
+  const newIds = new Set(games.map((g) => g.id));
+  for (const c of L.subCatchUp(st, seasonList.filter((g) => !newIds.has(g.id)))) {
+    try {
+      const [box, land] = cache.get(c.game.id) || await Promise.all([nhl.boxscore(c.game.id), nhl.landing(c.game.id)]);
+      cache.set(c.game.id, [box, land]);
+      const r = L.applyCatchUp(st, c, L.parseGame(box, land));
+      if (r) console.log(`INFO: doplněn zápas náhradníka ${c.slot.sub.name} (${c.owner}) ${c.game.date} ${c.game.away}-${c.game.home}: ${r.g}+${r.a}, ${r.pts} b.`);
+    } catch (e) { console.log(`Doplnění ${c.game.id}: ${e.message}`); }
+  }
   games.sort((a, b) => a.start.localeCompare(b.start));
   for (const g of games) {
     const [box, land] = await Promise.all([nhl.boxscore(g.id), nhl.landing(g.id)]);

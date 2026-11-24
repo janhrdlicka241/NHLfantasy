@@ -464,7 +464,9 @@ function bankSlot(st, game, parsed, now, owner, slot, opts) {
     }
   }
   if (inj && slot.sub && game.start > slot.sub.since && teams.includes(slot.sub.team)) {
-    const canUse = slot.bank > 0 || (!inj.baseBack && (opts.later || []).includes(slot.base.team));
+    // od v1.38: dokud se základní hráč nevrátil, počítá se každý zápas náhradníka (banka může jít do minusu);
+    // po návratu náhradník dohraje jen kladný zbytek banky
+    const canUse = slot.bank > 0 || !inj.baseBack;
     if (canUse) {
       mark(st, `rosters/${owner}`);
       if (lineup.has(slot.sub.id)) { slot.subMissed = 0; slot.bank--; const r = credit(st, game, parsed, owner, slot.sub, slot, "sub"); if (r) recPlay(st, inj, game, slot.sub, r); }
@@ -726,4 +728,31 @@ export function settleBobovka(prev, tips, finals) {
   for (const m of Object.values(months)) for (const x of Object.values(m.owners)) { x.won = Math.round(x.won * 100) / 100; x.staked = Math.round(x.staked * 100) / 100; }
   const jackpot = Object.values(jp).reduce((t, x) => t + x, 0);
   return { games, months, jackpot, jpBy: jp };
+}
+
+// --- v1.38: zpětné doplnění zápasů náhradníků, které staré pravidlo banky zablokovalo ---
+// jen u zranění, kde se základní hráč ještě nevrátil (všechny dosavadní zápasy jsou tedy „během zranění“)
+export function subCatchUp(st, finals) {
+  const out = [];
+  for (const inj of st.injuries) {
+    if (!inj.active || !inj.bankMode || inj.baseBack) continue;
+    const slot = st.rosters[inj.owner]?.slots?.find((x) => x.key === inj.slot);
+    if (!slot?.sub) continue;
+    const have = new Set((inj.subList || []).map((x) => String(x.id)));
+    for (const g of finals) {
+      if (g.date < BANK_FROM || g.start <= slot.sub.since || (inj.since && g.start <= inj.since)) continue;
+      if (![g.away, g.home].includes(slot.sub.team) || have.has(String(g.id))) continue;
+      out.push({ owner: inj.owner, slot, inj, game: g });
+    }
+  }
+  return out.sort((a, b) => a.game.start.localeCompare(b.game.start));
+}
+export function applyCatchUp(st, c, parsed) {
+  const { owner, slot, inj, game } = c;
+  if (!parsed.lineup.has(slot.sub.id)) return null; // náhradník nehrál – nic
+  slot.bank = (slot.bank || 0) - 1;
+  const r = credit(st, game, parsed, owner, slot.sub, slot, "sub");
+  if (r) recPlay(st, inj, game, slot.sub, r);
+  inj.bank = slot.bank; mark(st, `injuries/${inj.id}`); mark(st, `rosters/${owner}`);
+  return r;
 }
