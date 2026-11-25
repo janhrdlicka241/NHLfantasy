@@ -82,5 +82,25 @@
    "until": "2026-10-26T13:00:00Z"
   }
  ],
- "tipsDeleteBefore": "2026-11-12T12:08:00Z"
+ "tipsDeleteBefore": "2026-11-12T12:08:00Z",
+ "subListAdd": [
+  {
+   "owner": "Myšák",
+   "base": "Barkov",
+   "sub": "Jack Eichel",
+   "team": "VGK",
+   "games": [
+    {
+     "date": "2026-10-08",
+     "g": 1,
+     "a": 1
+    },
+    {
+     "date": "2026-10-20",
+     "g": 0,
+     "a": 0
+    }
+   ]
+  }
+ ]
 }

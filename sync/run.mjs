@@ -112,6 +112,7 @@ async function sync(fs) {
     if (redo.size) L.processGame(st, g, parsed, now, { only: new Set(redo.keys()), slots: redo, quiet, later: laterR });
   }
   if (retroGames.length) console.log(`Zpětně přepočteno zápasů: ${retroGames.length}`);
+  L.addSubEntries(st, manual.subListAdd, seasonList);
   // v1.38: doplnit zápasy náhradníků, které zablokovalo staré pravidlo banky (jen dosud odehrané, ne ty, které se zpracují teď)
   const newIds = new Set(games.map((g) => g.id));
   for (const c of L.subCatchUp(st, seasonList.filter((g) => !newIds.has(g.id)))) {

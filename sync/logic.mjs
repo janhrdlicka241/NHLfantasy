@@ -756,3 +756,23 @@ export function applyCatchUp(st, c, parsed) {
   inj.bank = slot.bank; mark(st, `injuries/${inj.id}`); mark(st, `rosters/${owner}`);
   return r;
 }
+
+// ruční doplnění řádků do seznamu odehraných zápasů náhradníka (např. říjnové zápasy z Excelu) – body se nemění
+export function addSubEntries(st, fixes, finals) {
+  for (const f of fixes || []) {
+    const inj = st.injuries.find((i) => i.owner === f.owner && (i.player?.name || "").includes(f.base));
+    if (!inj) { st.log.push({ warn: `Doplnění: zranění ${f.owner}/${f.base} nenalezeno.` }); continue; }
+    const slot = st.rosters[inj.owner]?.slots?.find((x) => x.key === inj.slot);
+    for (const e of f.games || []) {
+      const g = finals.find((x) => x.date === e.date && [x.away, x.home].includes(f.team));
+      if (!g) { st.log.push({ warn: `Doplnění: zápas ${f.team} ${e.date} nenalezen.` }); continue; }
+      inj.subList ||= [];
+      if (inj.subList.some((x) => x.id === g.id)) continue;
+      inj.subList.push({ id: g.id, d: g.date, opp: g.away === f.team ? g.home : g.away, name: f.sub, g: e.g || 0, a: e.a || 0, so: 0, pts: 0, excel: true });
+      inj.subList.sort((a, b) => a.d.localeCompare(b.d));
+      if (slot) { slot.games = (slot.games || 0) + 1; mark(st, `rosters/${inj.owner}`); }
+      mark(st, `injuries/${inj.id}`);
+      st.log.push({ info: `Doplněn řádek ${f.sub} ${g.date} (${f.owner}, Excel).` });
+    }
+  }
+}
