@@ -134,6 +134,7 @@ async function sync(fs) {
   console.log(`Zpracováno zápasů: ${games.length}`);
 
   L.applyManual(st, manual, idx, now);
+  L.trimClosed(st, manual.trimSub, now); // jen už uzavřená zranění, po zpracování zápasů
   for (const w of st.log.filter((e) => e.warn)) console.log("UPOZORNĚNÍ:", w.warn);
   for (const w of st.log.filter((e) => e.info)) console.log("INFO:", w.info);
   st.log = st.log.filter((e) => !e.warn && !e.info);

@@ -448,6 +448,8 @@ function bankSlot(st, game, parsed, now, owner, slot, opts) {
       slot.baseMissed = 0; slot.basePlayed = (slot.basePlayed || 0) + 1; slot.missBuf = [];
       if (inj && !inj.baseBack) {
         inj.baseBack = true; mark(st, `injuries/${inj.id}`);
+        // od v1.43: při návratu se zápasy vyrovnají – co náhradník odehrál navíc, se odečte od konce i s body
+        if (slot.bank < 0 && slot.sub) { trimSub(st, inj, owner, -slot.bank, now); slot.games = Math.max(0, (slot.games || 0) + slot.bank); slot.bank = 0; inj.bank = 0; }
         if (slot.bank > 0 && slot.sub) feed(st, now, "back", `${slot.base.name} (${owner}) se vrátil – ${slot.sub.name} dohraje ještě ${slot.bank} ${slot.bank === 1 ? "zápas" : slot.bank < 5 ? "zápasy" : "zápasů"}.`, owner);
       }
       credit(st, game, parsed, owner, slot.base, slot, "base");
@@ -773,6 +775,42 @@ export function addSubEntries(st, fixes, finals) {
       if (slot) { slot.games = (slot.games || 0) + 1; mark(st, `rosters/${inj.owner}`); }
       mark(st, `injuries/${inj.id}`);
       st.log.push({ info: `Doplněn řádek ${f.sub} ${g.date} (${f.owner}, Excel).` });
+    }
+  }
+}
+
+// v1.43: odečtení zápasů náhradníka navíc (od posledního), i s body v měsíci; zápasy zůstanou v seznamu přeškrtnuté
+export function trimSub(st, inj, owner, n, now) {
+  const live = (inj.subList || []).filter((x) => !x.cut && !x.excel).sort((a, b) => b.d.localeCompare(a.d));
+  const cut = live.slice(0, n), names = [];
+  for (const x of cut) {
+    x.cut = true;
+    const m = st.months[monthKey(x.d)];
+    if (m && !m.locked && x.pts) {
+      const o = m.owners[owner];
+      const p = o && Object.values(o.players || {}).find((q) => q.name === x.name);
+      if (p) { p.pts -= x.pts; p.g -= x.g || 0; p.a -= x.a || 0; p.so -= x.so || 0; p.gp = Math.max(0, p.gp - 1); o.pts -= x.pts; mark(st, `months/${m.key}`); }
+    } else if (m && !m.locked) { const o = m.owners[owner]; const p = o && Object.values(o.players || {}).find((q) => q.name === x.name); if (p) { p.gp = Math.max(0, p.gp - 1); mark(st, `months/${m.key}`); } }
+    names.push(`${x.d.slice(8, 10)}.${x.d.slice(5, 7)}. ${x.opp}${x.pts ? ` (−${x.pts})` : ""}`);
+  }
+  if (cut.length) {
+    mark(st, `injuries/${inj.id}`);
+    const pts = cut.reduce((t, x) => t + (x.pts || 0), 0), who = cut[0].name;
+    feed(st, now, "info", `${inj.player.name} (${owner}) se vrátil – ${who} odehrál o ${cut.length} ${cut.length === 1 ? "zápas" : "zápasy"} víc, odečteno: ${names.join(", ")}${pts ? ` · −${pts} b.` : ""}.`, owner);
+    st.log.push({ info: `Vyrovnání ${owner}/${inj.player.name}: odečteno ${names.join(", ")}.` });
+  }
+  return cut.length;
+}
+// jednorázově pro už uzavřená zranění (seed/manual.json → trimSub)
+export function trimClosed(st, list, now) {
+  for (const f of list || []) {
+    const inj = st.injuries.find((i) => i.owner === f.owner && (i.player?.name || "").includes(f.base));
+    if (!inj || inj.active) continue;
+    const played = (inj.subList || []).filter((x) => !x.cut).length, missed = (inj.missedList || []).length;
+    if (played > missed) {
+      const n = trimSub(st, inj, f.owner, played - missed, now);
+      const slot = st.rosters[f.owner]?.slots?.find((x) => x.key === inj.slot);
+      if (slot && n) { slot.games = Math.max(0, (slot.games || 0) - n); mark(st, `rosters/${f.owner}`); }
     }
   }
 }

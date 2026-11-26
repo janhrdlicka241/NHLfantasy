@@ -102,5 +102,15 @@
     }
    ]
   }
+ ],
+ "trimSub": [
+  {
+   "owner": "Hrdla",
+   "base": "Makar"
+  },
+  {
+   "owner": "Myšák",
+   "base": "Barkov"
+  }
  ]
 }

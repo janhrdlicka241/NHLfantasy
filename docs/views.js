@@ -243,7 +243,7 @@ const dmy = (d) => { const [, m, dd] = d.split("-"); return `${+dd}.${+m}.`; };
 function injToggle(i, U) { return `<button class="dtog" data-act="injdet" data-id="${i.id}">${U.openInj.has(i.id) ? "▾" : "▸"} zápasy</button>`; }
 export function injDetail(i, U) {
   if (!U.openInj.has(i.id)) return "";
-  const ml = i.missedList || [], sl = i.subList || [];
+  const ml = i.missedList || [], slAll = i.subList || [], sl = slAll.filter((x) => !x.cut);
   const subName = short(i.sub?.name || sl[sl.length - 1]?.name || "Náhradník");
   const bank = i.bankMode ? (i.bank || 0) : Math.max(0, ml.length - sl.length);
   const empty = !ml.length && !sl.length;
@@ -257,7 +257,7 @@ export function injDetail(i, U) {
       <div class="col"><h5><span class="who">${esc(short(i.player.name))}</span> vynechal <span class="n">${ml.length}</span></h5>
         <div class="gl">${ml.map((x) => `<div class="gi miss"><span class="d">${dmy(x.d)}</span><span>${x.opp}</span></div>`).join("") || `<div class="tname">–</div>`}</div></div>
       <div class="col"><h5><span class="who">${esc(subName)}</span> odehrál <span class="n">${sl.length}</span></h5>
-        <div class="gl">${sl.map((x) => `<div class="gi play ${x.excel ? "excel" : ""}"><span class="d">${dmy(x.d)}</span><span>${x.opp}</span>${stat(x)}</div>`).join("") || `<div class="tname">–</div>`}</div></div>
+        <div class="gl">${slAll.map((x) => `<div class="gi play ${x.excel ? "excel" : ""} ${x.cut ? "cut" : ""}"><span class="d">${dmy(x.d)}</span><span>${x.opp}</span>${x.cut ? `<span class="x tname">odečteno${x.pts ? ` −${x.pts}` : ""}</span>` : stat(x)}</div>`).join("") || `<div class="tname">–</div>`}</div></div>
     </div>
     <div class="sum ${empty ? "" : ok ? "ok" : "warn"}">${sum}</div>
   </div>`;
